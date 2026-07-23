@@ -1,0 +1,34 @@
+name: tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  portable-tests:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - name: Companion tests
+        run: npm test --prefix companion
+      - name: Chat view model tests
+        run: dotnet run --project tests/chat-view-model/ChatViewModelTests.csproj -c Release
+      - name: Dialogue formatter tests
+        run: dotnet run --project tests/dialogue-formatter/DialogueFormatterTests.csproj -c Release
+      - name: Music player locator tests
+        run: dotnet run --project tests/music-player-locator/MusicPlayerLocatorTests.csproj -c Release
+      - name: Runtime resource tests
+        run: dotnet run --project tests/runtime-resources/RuntimeResourceTests.csproj -c Release
+      - name: PowerShell settings tests
+        shell: powershell
+        run: .\tests\player-name-settings.ps1
+      - name: Release metadata tests
+        shell: powershell
+        run: .\tests\release-metadata.ps1

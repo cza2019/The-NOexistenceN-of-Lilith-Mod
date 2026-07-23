@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="..\..\plugin\src\MediaPollCoordinator.cs" Link="MediaPollCoordinator.cs" />
+    <Compile Include="..\..\plugin\src\CompanionRuntimeCache.cs" Link="CompanionRuntimeCache.cs" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,105 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/lilith-companion.schema.json",
+  "title": "Lilith Companion Protocol",
+  "type": "object",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/request"
+    },
+    {
+      "$ref": "#/$defs/response"
+    },
+    {
+      "$ref": "#/$defs/historyResponse"
+    }
+  ],
+  "$defs": {
+    "request": {
+      "type": "object",
+      "required": ["protocol_version", "session_id", "message", "mode", "player"],
+      "additionalProperties": false,
+      "properties": {
+        "protocol_version": {"const": 1},
+        "request_id": {"type": "string", "maxLength": 80},
+        "session_id": {"type": "string", "minLength": 1, "maxLength": 128},
+        "message": {"type": "string", "minLength": 1, "maxLength": 2000},
+        "mode": {"enum": ["in_character", "ooc"]},
+        "player": {
+          "type": "object",
+          "required": ["name"],
+          "additionalProperties": false,
+          "properties": {
+            "name": {"type": "string", "minLength": 1, "maxLength": 64}
+          }
+        },
+        "game": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "scene": {"type": "string", "maxLength": 80},
+            "mood": {"type": "string", "maxLength": 80},
+            "external_music_playing": {"type": "boolean"}
+          }
+        }
+      }
+    },
+    "response": {
+      "type": "object",
+      "required": ["protocol_version", "request_id", "status", "text", "ui"],
+      "additionalProperties": false,
+      "properties": {
+        "protocol_version": {"const": 1},
+        "request_id": {"type": "string", "maxLength": 80},
+        "status": {"enum": ["ok", "fallback", "error"]},
+        "text": {"type": "string", "maxLength": 1200},
+        "ui": {
+          "type": "object",
+          "required": ["emotion", "animation", "duration_ms"],
+          "additionalProperties": false,
+          "properties": {
+            "emotion": {"enum": ["neutral", "happy", "sad", "angry", "surprised", "shy"]},
+            "animation": {"enum": ["idle", "smile", "listen", "think", "music"]},
+            "duration_ms": {"type": "integer", "minimum": 500, "maximum": 45000}
+          }
+        },
+        "citations": {
+          "type": "array",
+          "maxItems": 5,
+          "items": {
+            "type": "object",
+            "required": ["title", "url"],
+            "additionalProperties": false,
+            "properties": {
+              "title": {"type": "string", "maxLength": 160},
+              "url": {"type": "string", "format": "uri", "maxLength": 500}
+            }
+          }
+        },
+        "fallback_reason": {"type": "string", "maxLength": 160}
+      }
+    },
+    "historyResponse": {
+      "type": "object",
+      "required": ["protocol_version", "session_id", "messages"],
+      "additionalProperties": false,
+      "properties": {
+        "protocol_version": {"const": 1},
+        "session_id": {"type": "string", "minLength": 1, "maxLength": 128},
+        "messages": {
+          "type": "array",
+          "maxItems": 100,
+          "items": {
+            "type": "object",
+            "required": ["role", "content"],
+            "additionalProperties": false,
+            "properties": {
+              "role": {"enum": ["user", "assistant"]},
+              "content": {"type": "string", "minLength": 1, "maxLength": 2000}
+            }
+          }
+        }
+      }
+    }
+  }
+}

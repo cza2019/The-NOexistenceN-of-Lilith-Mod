@@ -1,0 +1,59 @@
+{
+  "listen_host": "127.0.0.1",
+  "listen_port": 6186,
+  "mock_mode": true,
+  "active_provider": "custom",
+  "provider_profiles": {},
+  "provider": {
+    "kind": "custom",
+    "base_url": "",
+    "api_key": "",
+    "model": "",
+    "wire_api": "chat_completions",
+    "thinking_mode": "default",
+    "reasoning_effort": "",
+    "search_tool": "web_search",
+    "timeout_ms": 30000,
+    "temperature": 0.75,
+    "max_tokens": 500
+  },
+  "media": {
+    "enabled": true,
+    "bridge_path": "",
+    "allowed_sources": [
+      "cloudmusic",
+      "netease",
+      "qqmusic",
+      "spotify",
+      "music.ui",
+      "applemusic"
+    ]
+  },
+  "local_context": {
+    "enabled": true,
+    "time_enabled": true,
+    "media_enabled": true
+  },
+  "music": {
+    "preferred_player": "qqmusic"
+  },
+  "web_search": {
+    "enabled": false,
+    "backend": "off",
+    "base_url": "",
+    "api_key": "",
+    "timeout_ms": 8000,
+    "max_results": 5,
+    "cache_ttl_ms": 600000
+  },
+  "conversation": {
+    "reply_max_chars": 100,
+    "allow_parenthetical_actions": false
+  },
+  "memory": {
+    "max_messages": 24,
+    "max_chars_per_message": 2000,
+    "long_term_max_items": 24,
+    "long_term_max_chars": 1600
+  }
+}
