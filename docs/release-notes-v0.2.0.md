@@ -13,7 +13,7 @@
 ZIP SHA-256：
 
 ```text
-2565f40e7f443475a45eef4c40508fc2829e241cef621cbc3f7a6726015e93dc
+23fe6beed02f1eaa591896cbced6790cef7de8fe2854cacbd760019f13b2af5a
 ```
 
 ## 安装

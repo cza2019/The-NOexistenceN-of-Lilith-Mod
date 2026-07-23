@@ -145,6 +145,9 @@ foreach ($file in @('README.md', 'LICENSE', 'ASSET-NOTICE.md', 'THIRD-PARTY-NOTI
     Copy-Item -LiteralPath (Join-Path $repo $file) -Destination $OutputDirectory
 }
 Copy-Item -LiteralPath (Join-Path $repo 'docs\installation.md') -Destination (Join-Path $OutputDirectory 'INSTALL.md')
+$publicDocsOutput = Join-Path $OutputDirectory 'docs'
+New-Item -ItemType Directory -Path $publicDocsOutput -Force | Out-Null
+Copy-Item -LiteralPath (Join-Path $repo 'docs\installation.md') -Destination $publicDocsOutput
 
 $releaseManifest = [ordered]@{
     schema_version = 1
