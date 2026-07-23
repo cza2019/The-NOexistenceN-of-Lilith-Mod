@@ -49,3 +49,13 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-bundle.ps1 `
 3. 创建正式Release，上传ZIP和 `.sha256.txt`。
 4. Release说明以中文为主，包含系统要求、安装方式、已知限制和更新日志。
 5. 发布后从Mod设置点击“检查更新”，确认显示当前已是最新版本。
+
+如果 `gh release upload` 在代理环境下上传大文件时停滞，可使用不保存令牌的流式上传脚本：
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/upload-release-asset.ps1 `
+  -Repository 'owner/repository' -Tag 'v0.2.0' -FilePath '完整ZIP路径' `
+  -Proxy 'http://127.0.0.1:7897'
+```
+
+脚本从 GitHub CLI系统凭据库临时读取认证信息，通过标准输入交给 `curl`，不会把令牌写入项目、临时文件或命令行参数。
