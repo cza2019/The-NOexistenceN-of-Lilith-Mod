@@ -26,7 +26,7 @@
 4. 从 Steam正常启动游戏。首次加载 BepInEx可能比平时慢。
 5. 右键莉莉丝或托盘打开“Mod设置”，填写自己的模型 API 信息。
 
-发布包已经包含 BepInEx 6 IL2CPP、Node.js 24 LTS和自包含媒体桥接。玩家不需要
+发布包已经包含 BepInEx 6 IL2CPP、Unity 2021.3.45基础库、Node.js 24 LTS和自包含媒体桥接，首次生成 IL2CPP缓存不需要外部下载。玩家不需要
 安装或固定 Node、BepInEx、.NET或 PowerShell 7；设置窗口使用 Windows 10/11
 系统自带的 Windows PowerShell 5.1。
 
@@ -65,7 +65,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-bundle.ps1
 
 - 原创代码使用 [MIT License](LICENSE)。
 - 游戏角色素材和赞赏码不适用 MIT代码许可，详见 [素材声明](ASSET-NOTICE.md)。
-- BepInEx、Node.js、.NET等组件使用各自许可证，详见 [第三方组件声明](THIRD-PARTY-NOTICES.md)。
+- BepInEx、Unity基础类库、Node.js、.NET等组件使用各自条款，详见 [第三方组件声明](THIRD-PARTY-NOTICES.md)。
 - 本项目不包含游戏本体，使用者必须通过 Steam合法安装《不存在的莉莉丝》。
 
 macOS适配、设置窗口脱离 PowerShell和自动覆盖更新不属于 0.2.0 首发范围。

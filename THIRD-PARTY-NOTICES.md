@@ -10,6 +10,13 @@ Windows 发布包捆绑以下运行组件，玩家无需另行安装。各组件
 - 许可证：GNU Lesser General Public License v2.1。
 - 发布包附带：`BepInEx-LICENSE.txt`。
 
+## Unity 2021.3.45 基础类库
+
+- 用途：供 BepInEx在玩家电脑上首次生成 IL2CPP互操作程序集，避免首次启动依赖外部下载。
+- 来源：BepInEx Unity基础类库服务所提供的 `2021.3.45.zip`。
+- 权利归属：Unity相关名称、程序集和组件的权利归其各自权利人所有。
+- 发布包位置：`BepInEx/unity-libs/2021.3.45.zip`；该文件不属于本项目 MIT许可证的重新授权范围。
+
 ## Node.js
 
 - 用途：运行本地 Lilith Companion 服务。
