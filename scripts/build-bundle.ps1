@@ -48,6 +48,9 @@ $dotnetLicense = Join-Path $repo 'vendor\dotnet-sdk\LICENSE.txt'
 $dotnetNotices = Join-Path $repo 'vendor\dotnet-sdk\ThirdPartyNotices.txt'
 $bepInExRoot = Join-Path $repo 'vendor\bepinex-769'
 $bepInExLicense = Join-Path $bepInExRoot 'LICENSE'
+$unityVersion = '2021.3.45'
+$unityBaseLibraries = Join-Path $GameDir "BepInEx\unity-libs\$unityVersion.zip"
+$unityBaseLibrariesSha256 = '3cfde1613715c966cb8084087c37081ed5896871b39194d45a907a69dd7da9e5'
 foreach ($required in @(
     $dotnet,
     $dotnetLicense,
@@ -56,9 +59,14 @@ foreach ($required in @(
     (Join-Path $bepInExRoot 'winhttp.dll'),
     (Join-Path $bepInExRoot 'BepInEx\core\BepInEx.Unity.IL2CPP.dll'),
     (Join-Path $bepInExRoot 'dotnet\coreclr.dll'),
+    $unityBaseLibraries,
     (Join-Path $GameDir 'BepInEx\interop\Assembly-CSharp.dll')
 )) {
     if (-not (Test-Path -LiteralPath $required)) { throw "Required build input not found: $required" }
+}
+$actualUnityBaseLibrariesSha256 = (Get-FileHash -LiteralPath $unityBaseLibraries -Algorithm SHA256).Hash.ToLowerInvariant()
+if ($actualUnityBaseLibrariesSha256 -ne $unityBaseLibrariesSha256) {
+    throw "Unity $unityVersion base-libraries hash mismatch: $actualUnityBaseLibrariesSha256"
 }
 
 if ([string]::IsNullOrWhiteSpace($NodePath)) {
@@ -110,6 +118,14 @@ New-Item -ItemType Directory -Path $bepInExConfigOutput -Force | Out-Null
 Copy-Item -LiteralPath (Join-Path $repo 'packaging\BepInEx.cfg') `
     -Destination (Join-Path $bepInExConfigOutput 'BepInEx.cfg') -Force
 
+# BepInEx normally downloads these reference assemblies on the first IL2CPP
+# launch. Bundle the exact, verified archive so clean installations do not
+# depend on unity.bepinex.dev being reachable.
+$unityLibrariesOutput = Join-Path $OutputDirectory 'BepInEx\unity-libs'
+New-Item -ItemType Directory -Path $unityLibrariesOutput -Force | Out-Null
+Copy-Item -LiteralPath $unityBaseLibraries `
+    -Destination (Join-Path $unityLibrariesOutput "$unityVersion.zip") -Force
+
 $pluginRoot = Join-Path $OutputDirectory 'BepInEx\plugins'
 New-Item -ItemType Directory -Path $pluginRoot -Force | Out-Null
 Copy-Item -LiteralPath (Join-Path $repo 'plugin\bin\Release\net6.0\LilithMod.dll') -Destination $pluginRoot
@@ -156,6 +172,8 @@ $releaseManifest = [ordered]@{
     platform = 'win-x64'
     game = 'The NOexistenceN of Lilith'
     bep_in_ex = '6.0.0-be.769 IL2CPP'
+    unity_base_libraries = $unityVersion
+    unity_base_libraries_sha256 = $unityBaseLibrariesSha256
     node = $nodeVersion
     media_bridge = 'self-contained net8.0 win-x64'
     built_at_utc = [DateTime]::UtcNow.ToString('o')
@@ -201,6 +219,7 @@ $manifestLines = foreach ($file in Get-ChildItem -LiteralPath $OutputDirectory -
 Write-Host "Bundle created: $OutputDirectory"
 Write-Host "Version: $version"
 Write-Host 'Bundled BepInEx: 6.0.0-be.769'
+Write-Host "Bundled Unity base libraries: $unityVersion ($unityBaseLibrariesSha256)"
 Write-Host "Bundled Node.js: $nodeVersion"
 Write-Host 'No original-game binaries, local API configuration, runtime memory, tests, or debug symbols were copied.'
 
@@ -210,6 +229,20 @@ if (-not $SkipArchive) {
     $checksumPath = $archivePath + '.sha256.txt'
     Remove-Item -LiteralPath $archivePath,$checksumPath -Force -ErrorAction SilentlyContinue
     Compress-Archive -Path (Join-Path $OutputDirectory '*') -DestinationPath $archivePath -CompressionLevel Optimal
+    Add-Type -AssemblyName System.IO.Compression.FileSystem
+    $archive = [IO.Compression.ZipFile]::OpenRead($archivePath)
+    try {
+        $unityEntryName = "BepInEx/unity-libs/$unityVersion.zip"
+        $unityEntry = $archive.Entries | Where-Object {
+            $_.FullName.Replace('\', '/') -eq $unityEntryName
+        } | Select-Object -First 1
+        if ($null -eq $unityEntry -or $unityEntry.Length -ne (Get-Item -LiteralPath $unityBaseLibraries).Length) {
+            throw "Release archive is missing the verified Unity base libraries: $unityEntryName"
+        }
+    }
+    finally {
+        $archive.Dispose()
+    }
     $archiveHash = (Get-FileHash -LiteralPath $archivePath -Algorithm SHA256).Hash.ToLowerInvariant()
     [IO.File]::WriteAllText(
         $checksumPath,

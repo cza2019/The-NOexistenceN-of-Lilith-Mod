@@ -13,7 +13,7 @@
 ZIP SHA-256：
 
 ```text
-23fe6beed02f1eaa591896cbced6790cef7de8fe2854cacbd760019f13b2af5a
+46a8dc821e9341d4a4322a1cdf3753fde6d1b5dcddd5b04a984ff77ff511497a
 ```
 
 ## 安装
@@ -23,7 +23,7 @@ ZIP SHA-256：
 3. 从Steam正常启动游戏。
 4. 在“Mod设置”中填写自己的模型服务信息。
 
-包内已包含BepInEx 6 IL2CPP、Node.js 24 LTS和自包含媒体桥接，不需要单独安装。
+包内已包含BepInEx 6 IL2CPP、Unity 2021.3.45基础库、Node.js 24 LTS和自包含媒体桥接，首次生成 IL2CPP缓存不依赖外部下载，也不需要玩家单独安装这些组件。
 
 ## 主要功能
 

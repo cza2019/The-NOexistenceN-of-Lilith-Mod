@@ -5,6 +5,14 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $bundle = (Resolve-Path -LiteralPath $BundleDirectory).Path
+$unityLibraries = Join-Path $bundle 'BepInEx\unity-libs\2021.3.45.zip'
+if (-not (Test-Path -LiteralPath $unityLibraries)) {
+    throw 'Bundled Unity 2021.3.45 base libraries are missing.'
+}
+$unityLibrariesHash = (Get-FileHash -LiteralPath $unityLibraries -Algorithm SHA256).Hash.ToLowerInvariant()
+if ($unityLibrariesHash -ne '3cfde1613715c966cb8084087c37081ed5896871b39194d45a907a69dd7da9e5') {
+    throw "Bundled Unity base-libraries hash mismatch: $unityLibrariesHash"
+}
 $temp = Join-Path $env:TEMP ('lilith-bundle-smoke-' + [Guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Path $temp -Force | Out-Null
 Copy-Item -LiteralPath (Join-Path $bundle 'BepInEx\plugins\companion\config.example.json') `
@@ -53,6 +61,7 @@ try {
         MockMode = [bool]$health.mock_mode
         MediaAvailable = [bool]$media.available
         NodeVersion = (& (Join-Path $bundle 'BepInEx\plugins\companion\node.exe') --version)
+        UnityBaseLibraries = '2021.3.45'
     } | Format-List
 } finally {
     if ($null -ne $process -and -not $process.HasExited) {

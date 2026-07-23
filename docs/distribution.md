@@ -4,7 +4,7 @@
 
 - Release只发布 Mod补丁，不包含游戏本体、游戏程序集、存档或完整原作文案。
 - `vendor`、游戏生成的 `BepInEx/interop`、开发工具和本机配置不进入 Git仓库。
-- Windows ZIP捆绑干净的 BepInEx 6 IL2CPP、Node.js 24 LTS和自包含媒体桥接。
+- Windows ZIP捆绑干净的 BepInEx 6 IL2CPP、经过校验的 Unity 2021.3.45基础类库、Node.js 24 LTS和自包含媒体桥接。
 - 玩家不需要安装Node、BepInEx、.NET、AstrBot或PowerShell 7。
 - 公开前确认头像素材授权，并保留 `ASSET-NOTICE.md`。
 
@@ -36,7 +36,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-bundle.ps1 `
 ## 验收
 
 - 在干净的 Steam游戏目录安装 ZIP，不预装BepInEx或Node。
-- 从Steam直接启动，确认首次缓存生成完成且不弹常驻控制台。
+- 从Steam直接启动，确认首次缓存生成完成且不弹常驻控制台；断开外网后重复一次全新目录验收，确认不会尝试下载 Unity基础类库。
 - 验证聊天、历史、气泡点击、长期记忆、玩家改名、API设置和检查更新。
 - 验证QQ音乐/网易云音乐启动、播放、暂停、切歌及浏览器排除。
 - 退出后确认游戏、Node和媒体桥接进程全部结束，玩家音乐软件不被关闭。

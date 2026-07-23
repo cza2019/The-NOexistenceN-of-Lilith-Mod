@@ -5,7 +5,7 @@
 候选 SHA-256：
 
 ```text
-23fe6beed02f1eaa591896cbced6790cef7de8fe2854cacbd760019f13b2af5a
+46a8dc821e9341d4a4322a1cdf3753fde6d1b5dcddd5b04a984ff77ff511497a
 ```
 
 ## 环境
@@ -20,6 +20,8 @@
 - [ ] ZIP的SHA-256与上方一致。
 - [ ] 解压后 `winhttp.dll` 与 `Lilith.exe` 同级。
 - [ ] 从Steam直接启动成功，首次缓存生成结束。
+- [ ] 断开网络或屏蔽 `unity.bepinex.dev` 时，首次启动仍可使用包内 `BepInEx/unity-libs/2021.3.45.zip` 完成缓存生成。
+- [ ] `LogOutput.log` 中没有 Unity基础库下载失败、`no plugins will be loaded` 或 `UnityEngine.CoreModule` 缺失错误。
 - [ ] 没有常驻BepInEx控制台窗口。
 - [ ] 任务管理器中的Companion使用包内 `BepInEx/plugins/companion/node.exe`。
 
