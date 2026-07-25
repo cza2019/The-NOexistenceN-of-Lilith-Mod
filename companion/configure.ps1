@@ -762,6 +762,8 @@ function Show-PlayerMemoryEditor {
     $memoryGrid.AllowUserToDeleteRows = $true
     $memoryGrid.AllowUserToResizeRows = $false
     $memoryGrid.RowHeadersVisible = $false
+    $memoryGrid.SelectionMode = [System.Windows.Forms.DataGridViewSelectionMode]::FullRowSelect
+    $memoryGrid.MultiSelect = $true
     $memoryGrid.AutoSizeRowsMode = [System.Windows.Forms.DataGridViewAutoSizeRowsMode]::AllCells
     $memoryGrid.DefaultCellStyle.WrapMode = [System.Windows.Forms.DataGridViewTriState]::True
     [void]$memoryGrid.Columns.Add('MemoryKey', '项目')
@@ -843,6 +845,24 @@ function Show-PlayerMemoryEditor {
     $memoryGrid.Add_CellValueChanged($refreshMemoryStatus)
     $memoryGrid.Add_RowsAdded($refreshMemoryStatus)
     $memoryGrid.Add_RowsRemoved($refreshMemoryStatus)
+    $memoryGrid.Add_KeyDown({
+        param($sender, $eventArgs)
+
+        if ($eventArgs.KeyCode -ne [System.Windows.Forms.Keys]::Delete -or
+            $memoryGrid.IsCurrentCellInEditMode) {
+            return
+        }
+
+        $selectedRows = @($memoryGrid.SelectedRows | Where-Object { -not $_.IsNewRow })
+        if ($selectedRows.Count -eq 0) { return }
+
+        foreach ($row in @($selectedRows | Sort-Object Index -Descending)) {
+            $memoryGrid.Rows.Remove($row)
+        }
+
+        $eventArgs.Handled = $true
+        $eventArgs.SuppressKeyPress = $true
+    }.GetNewClosure())
 
     $saveMemoryButton.Add_Click({
         $stagePath = ''
