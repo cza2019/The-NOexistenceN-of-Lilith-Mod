@@ -123,6 +123,10 @@ function Write-JsonAtomic {
     }
 }
 
+if ($null -eq $uiPreferences.PSObject.Properties['EnhancedCrossScreenDrag']) {
+    Set-JsonProperty $uiPreferences 'EnhancedCrossScreenDrag' $false
+}
+
 if ($null -eq $config.provider) {
     Set-JsonProperty $config 'provider' ([pscustomobject]@{})
 }
@@ -672,7 +676,7 @@ $apiPage.Controls.Add($parentheticalActions)
 $musicIntro = New-Object System.Windows.Forms.Label
 $musicIntro.Location = New-Object System.Drawing.Point(20, 20)
 $musicIntro.Size = New-Object System.Drawing.Size(550, 44)
-$musicIntro.Text = '设置“一起听歌吧”优先打开的音乐软件，以及聊天窗口的显示大小。首选音乐软件不可用时会自动尝试另一个。'
+$musicIntro.Text = '设置“一起听歌吧”优先打开的音乐软件、聊天窗口大小和桌面交互。首选音乐软件不可用时会自动尝试另一个。'
 $musicPage.Controls.Add($musicIntro)
 
 $musicPreferenceLabel = New-Object System.Windows.Forms.Label
@@ -715,6 +719,19 @@ $chatScaleHint.Location = New-Object System.Drawing.Point(154, 184)
 $chatScaleHint.Size = New-Object System.Drawing.Size(416, 36)
 $chatScaleHint.Text = '聊天窗口会先按屏幕分辨率自动适配；此倍率在自动结果上额外叠加。'
 $musicPage.Controls.Add($chatScaleHint)
+
+$enhancedCrossScreenDrag = New-Object System.Windows.Forms.CheckBox
+$enhancedCrossScreenDrag.Location = New-Object System.Drawing.Point(20, 220)
+$enhancedCrossScreenDrag.Size = New-Object System.Drawing.Size(550, 24)
+$enhancedCrossScreenDrag.Text = '优化跨屏拖动（实验性）'
+$enhancedCrossScreenDrag.Checked = [bool]$uiPreferences.EnhancedCrossScreenDrag
+$musicPage.Controls.Add($enhancedCrossScreenDrag)
+
+$enhancedCrossScreenDragHint = New-Object System.Windows.Forms.Label
+$enhancedCrossScreenDragHint.Location = New-Object System.Drawing.Point(42, 244)
+$enhancedCrossScreenDragHint.Size = New-Object System.Drawing.Size(528, 28)
+$enhancedCrossScreenDragHint.Text = '请先在游戏设置→控制中开启“跨屏拖动”，否则无法拖到其他屏幕；本项只优化各屏触底高度。'
+$musicPage.Controls.Add($enhancedCrossScreenDragHint)
 
 function Show-PlayerMemoryEditor {
     $dialog = New-Object System.Windows.Forms.Form
@@ -1038,8 +1055,8 @@ function Show-PlayerMemoryEditor {
 }
 
 $memoryGroup = New-Object System.Windows.Forms.GroupBox
-$memoryGroup.Location = New-Object System.Drawing.Point(20, 238)
-$memoryGroup.Size = New-Object System.Drawing.Size(550, 296)
+$memoryGroup.Location = New-Object System.Drawing.Point(20, 276)
+$memoryGroup.Size = New-Object System.Drawing.Size(550, 258)
 $memoryGroup.Text = '莉莉丝对玩家的记忆'
 $musicPage.Controls.Add($memoryGroup)
 
@@ -1077,7 +1094,7 @@ $memoryGroup.Controls.Add($openMemoryFolderButton)
 
 $memoryRules = New-Object System.Windows.Forms.Label
 $memoryRules.Location = New-Object System.Drawing.Point(16, 110)
-$memoryRules.Size = New-Object System.Drawing.Size(516, 166)
+$memoryRules.Size = New-Object System.Drawing.Size(516, 138)
 $memoryRules.Text = "手动调整方法与规范：`r`n· 游戏运行时可在编辑窗口顶部修改游戏内玩家称呼，原有长期记忆会自动迁移。`r`n· 每行填写一条记忆：「项目」是分类名称，「内容」是希望莉莉丝记住的信息。`r`n· 同类内容合并在同一项目；项目≤24字符，内容≤100字符。`r`n· 最多$memoryMaxItems 条，项目和内容合计≤$memoryMaxChars 字符。`r`n· 选中整行后按 Delete 可删除；保存后从下一轮对话生效。`r`n· 迁移设备时复制整个 players 目录；修改称呼和校验均在本地完成，不调用 AI。`r`n· 请勿填写密码、验证码、证件、银行卡或 API 密钥。"
 $memoryGroup.Controls.Add($memoryRules)
 
@@ -1657,6 +1674,7 @@ $saveButton.Add_Click({
         Set-JsonProperty $localContext 'time_enabled' ([bool]$localTimeEnabled.Checked)
         Set-JsonProperty $localContext 'media_enabled' ([bool]$localMediaEnabled.Checked)
         Set-JsonProperty $uiPreferences 'Scale' ([double]$chatScale.Value / 100.0)
+        Set-JsonProperty $uiPreferences 'EnhancedCrossScreenDrag' ([bool]$enhancedCrossScreenDrag.Checked)
 
         $json = $config | ConvertTo-Json -Depth 10
         [IO.File]::WriteAllText(

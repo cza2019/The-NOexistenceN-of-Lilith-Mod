@@ -113,6 +113,7 @@ public sealed class LilithRuntimeBehaviour : MonoBehaviour
             action();
         }
         _playerNameBridge.Tick();
+        CrossScreenDragFeature.Tick();
         _memoryDiagnostics.Tick(_mediaPollCoordinator);
 
         if (_musicExitPending && Time.unscaledTime >= _musicExitDeadline)
@@ -165,6 +166,7 @@ public sealed class LilithRuntimeBehaviour : MonoBehaviour
         }
         TrayIntegration.Unbind(this);
         _playerNameBridge.Dispose();
+        CrossScreenDragFeature.Shutdown();
         _lifetime.Dispose();
         ChatState.Reset();
         _chatWindow.Dispose();
@@ -175,6 +177,7 @@ public sealed class LilithRuntimeBehaviour : MonoBehaviour
         _mediaPollCoordinator.Cancel();
         _lifetime.Cancel();
         _playerNameBridge.Dispose();
+        CrossScreenDragFeature.Shutdown();
         LilithModPlugin.ShutdownCompanion();
     }
 

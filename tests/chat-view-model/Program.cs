@@ -87,6 +87,14 @@ if (ChatPanelPlacement.OppositeEdgeX(1800f, 1920f, 560f, 1f, 18f) != 18f)
 {
     throw new InvalidOperationException("A character on the right must dock the chat panel on the left.");
 }
+if (ChatPanelPlacement.OppositeEdgeXInArea(2100f, 1920f, 2460f, 560f, 0.7f, 18f) != 2050f)
+{
+    throw new InvalidOperationException("A character on the left side of a secondary monitor must dock within that monitor's right edge.");
+}
+if (ChatPanelPlacement.OppositeEdgeXInArea(2400f, 1920f, 2460f, 560f, 0.7f, 18f) != 1938f)
+{
+    throw new InvalidOperationException("A character on the right side of a secondary monitor must dock within that monitor's left edge.");
+}
 if (!ChatPanelPlacement.OverlapsCharacter(24f, 560f, 1f, 600f)
     || ChatPanelPlacement.OverlapsCharacter(24f, 560f, 1f, 1100f))
 {

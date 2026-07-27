@@ -17,6 +17,17 @@ $temp = Join-Path $env:TEMP ('lilith-bundle-smoke-' + [Guid]::NewGuid().ToString
 New-Item -ItemType Directory -Path $temp -Force | Out-Null
 Copy-Item -LiteralPath (Join-Path $bundle 'BepInEx\plugins\companion\config.example.json') `
     -Destination (Join-Path $temp 'config.json')
+$listener = [Net.Sockets.TcpListener]::new([Net.IPAddress]::Loopback, 0)
+$listener.Start()
+$testPort = ([Net.IPEndPoint]$listener.LocalEndpoint).Port
+$listener.Stop()
+$configPath = Join-Path $temp 'config.json'
+$config = Get-Content -LiteralPath $configPath -Raw -Encoding UTF8 | ConvertFrom-Json
+$config.listen_port = $testPort
+[IO.File]::WriteAllText(
+    $configPath,
+    (($config | ConvertTo-Json -Depth 10) + [Environment]::NewLine),
+    (New-Object Text.UTF8Encoding($false)))
 
 $oldData = $env:LILITH_AI_DATA_DIR
 $oldCharacter = $env:LILITH_CHARACTER_FILE

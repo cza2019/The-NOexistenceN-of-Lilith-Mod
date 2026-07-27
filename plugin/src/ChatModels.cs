@@ -92,6 +92,20 @@ internal static class ChatPanelPlacement
             ? Math.Max(margin, canvasWidth - panelWidth * userScale - margin)
             : margin;
     }
+
+    public static float OppositeEdgeXInArea(
+        float characterX,
+        float areaLeft,
+        float areaRight,
+        float panelWidth,
+        float userScale,
+        float margin)
+    {
+        float left = areaLeft + margin;
+        float right = Math.Max(left, areaRight - panelWidth * userScale - margin);
+        float center = (areaLeft + areaRight) * 0.5f;
+        return characterX < center ? right : left;
+    }
 }
 
 internal interface IChatView : IDisposable

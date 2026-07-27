@@ -20,6 +20,8 @@ jobs:
         run: npm test --prefix companion
       - name: Chat view model tests
         run: dotnet run --project tests/chat-view-model/ChatViewModelTests.csproj -c Release
+      - name: Cross-screen geometry tests
+        run: dotnet run --project tests/cross-screen-ground/CrossScreenGroundTests.csproj -c Release
       - name: Dialogue formatter tests
         run: dotnet run --project tests/dialogue-formatter/DialogueFormatterTests.csproj -c Release
       - name: Music player locator tests

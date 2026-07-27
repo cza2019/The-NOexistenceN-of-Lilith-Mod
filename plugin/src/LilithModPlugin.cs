@@ -52,6 +52,7 @@ public sealed class LilithModPlugin : BasePlugin
         {
             _harmony = new Harmony(PluginGuid);
             _harmony.PatchAll(typeof(UserInterfacePatches));
+            CrossScreenDragPatches.Apply(_harmony);
             Log.LogInfo("User interface polling registered");
         }
         if (!noRuntime)

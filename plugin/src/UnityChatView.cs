@@ -977,17 +977,22 @@ internal sealed class UnityChatView : IChatView
         if (_hasSessionPosition)
         {
             ClampToCanvas();
-            CaptureSessionPosition();
-            return;
+            if (IsPanelOnVisibleMonitor())
+            {
+                CaptureSessionPosition();
+                return;
+            }
+            _hasSessionPosition = false;
+            LilithModPlugin.PluginLog.LogWarning(
+                "Remembered chat position was outside every monitor; docking beside Lilith");
         }
 
         float canvasScale = _canvasScaler?.scaleFactor ?? 1f;
-        bool characterAvailable = _characterScreenLocator.TryGetHorizontalPosition(out float characterScreenX)
+        bool characterAvailable = _characterScreenLocator.TryGetPlacementArea(out CharacterScreenPlacement placement)
             && canvasScale > 0f;
         if (characterAvailable)
         {
-            float characterX = characterScreenX / canvasScale;
-            DockOppositeCharacter(characterX);
+            DockOppositeCharacter(placement, canvasScale);
         }
         else
         {
@@ -1008,21 +1013,43 @@ internal sealed class UnityChatView : IChatView
             _sessionPositionY * available.y + SafeMargin);
     }
 
-    private void DockOppositeCharacter(float characterX)
+    private void DockOppositeCharacter(CharacterScreenPlacement placement, float canvasScale)
     {
         if (_panel is null || _canvasRect is null)
         {
             return;
         }
         Vector2 position = _panel.anchoredPosition;
-        position.x = ChatPanelPlacement.OppositeEdgeX(
-            characterX,
-            _canvasRect.rect.width,
+        float areaLeft = placement.Left / canvasScale;
+        float areaRight = placement.Right / canvasScale;
+        float areaBottom = placement.Bottom / canvasScale;
+        float areaTop = placement.Top / canvasScale;
+        position.x = ChatPanelPlacement.OppositeEdgeXInArea(
+            placement.CharacterX / canvasScale,
+            areaLeft,
+            areaRight,
             _panel.rect.width,
             _userScale,
             SafeMargin);
-        position.y = 80f;
+        float highestBottom = Math.Max(
+            areaBottom + SafeMargin,
+            areaTop - _panel.rect.height * _userScale - SafeMargin);
+        position.y = Mathf.Clamp(
+            areaBottom + 80f,
+            areaBottom + SafeMargin,
+            highestBottom);
         _panel.anchoredPosition = position;
+    }
+
+    private bool IsPanelOnVisibleMonitor()
+    {
+        if (_panel is null)
+        {
+            return false;
+        }
+        Vector3 worldCenter = _panel.TransformPoint(_panel.rect.center);
+        Vector2 screenCenter = RectTransformUtility.WorldToScreenPoint(null, worldCenter);
+        return _characterScreenLocator.IsScreenPointVisible(screenCenter.x, screenCenter.y);
     }
 
     private void UpdateCanvasScale()
