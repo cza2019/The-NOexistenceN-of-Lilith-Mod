@@ -1093,21 +1093,30 @@ function createApp() {
           const matchIds = loreResults.entries.map(entry => entry.id).join(',') || 'none';
           console.log(`Lore retrieval: sequence=${Boolean(loreResults.sequence)}; matches=${matchIds}`);
         }
-        const directSearchRequested = (body.web_search === true
-          || !localTimeAnswersQuestion(message, localContext))
-          && shouldSearch(
-            message,
-            config.web_search,
-            body.web_search === true);
-        const mediaContextSearchRequested = mediaSearchRequested(
-          localContext,
-          config.web_search);
-        const searchRequested = directSearchRequested || mediaContextSearchRequested;
         const providerKind = String(config.provider.kind || 'custom').toLowerCase();
         const wireApi = String(config.provider.wire_api || '').toLowerCase();
-        const providerWebSearch = searchRequested
+        const responsesModelDirectedSearch = config.web_search.enabled
           && config.web_search.backend === 'provider'
-          && (wireApi === 'responses' || (providerKind === 'qwen' && wireApi === 'chat_completions'));
+          && wireApi === 'responses';
+        let directSearchRequested = false;
+        let searchRequested = false;
+        if (!responsesModelDirectedSearch) {
+          directSearchRequested = (body.web_search === true
+            || !localTimeAnswersQuestion(message, localContext))
+            && shouldSearch(
+              message,
+              config.web_search,
+              body.web_search === true);
+          const mediaContextSearchRequested = mediaSearchRequested(
+            localContext,
+            config.web_search);
+          searchRequested = directSearchRequested || mediaContextSearchRequested;
+        }
+        const providerWebSearch = responsesModelDirectedSearch
+          || (searchRequested
+            && config.web_search.backend === 'provider'
+            && providerKind === 'qwen'
+            && wireApi === 'chat_completions');
         let webResults = [];
         if (searchRequested && !providerWebSearch) {
           try {
@@ -1130,7 +1139,8 @@ function createApp() {
           playerMemory,
           localContext,
           loreContext);
-        if (providerWebSearch
+        if (wireApi === 'chat_completions'
+          && providerWebSearch
           && directSearchRequested
           && !(localContext && localContext.media)
           && result.status === 'ok'

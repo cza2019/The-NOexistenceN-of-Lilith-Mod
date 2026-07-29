@@ -1362,18 +1362,20 @@ function Refresh-SearchControls {
     $searchKey.Enabled = $mode -eq 'Brave Search'
     $showSearchKey.Enabled = $searchKey.Enabled
     if ($mode -eq '模型内置') {
-        $hint.Text = switch ($providerPreset.SelectedIndex) {
-            1 { '火山方舟将通过 Responses API 调用 Web Search 联网内容插件。' }
-            4 { 'Qwen 将使用 Chat Completions 的内置联网搜索。' }
-            0 { '自定义服务只有在 Responses 接口支持 web_search 时才能使用模型内置搜索。' }
-            2 { 'DeepSeek 直连不使用 Responses 搜索，请改选 Brave Search 或 SearXNG。' }
-            3 { 'Kimi 的内置搜索接口仍在调整，当前建议改选 Brave Search 或 SearXNG。' }
-            default { '当前预设尚未启用模型内置搜索，请改选 Brave Search 或 SearXNG。' }
+        if ([string]$wireApi.SelectedItem -eq 'responses') {
+            $hint.Text = 'Responses 模型内置搜索已启用；模型会根据当前对话自行决定是否联网。'
+        } else {
+            $hint.Text = switch ($providerPreset.SelectedIndex) {
+                4 { 'Qwen 将使用 Chat Completions 的内置联网搜索；仅在本地规则命中实时、检索或媒体推荐话题时调用。' }
+                2 { 'DeepSeek 直连不使用模型内置搜索，请改选 Brave Search 或 SearXNG。' }
+                3 { 'Kimi 的内置搜索接口仍在调整，当前建议改选 Brave Search 或 SearXNG。' }
+                default { 'Chat Completions 的联网搜索仅在本地规则命中时触发；当前服务商预设可能不支持模型内置搜索。' }
+            }
         }
     } elseif ($mode -eq 'Brave Search') {
-        $hint.Text = 'Brave Search 需要单独的搜索 API Key；模型 API Key 不会用于搜索。'
+        $hint.Text = 'Brave Search 仅在本地规则命中实时、检索或媒体推荐话题时调用；模型 API Key 不会用于搜索。'
     } elseif ($mode -eq 'SearXNG') {
-        $hint.Text = '填写可访问的 SearXNG 实例地址；搜索请求只发送当前问题，不上传本地聊天记录。'
+        $hint.Text = 'SearXNG 仅在本地规则命中实时、检索或媒体推荐话题时调用；搜索请求只发送当前问题，不上传本地聊天记录。'
     } else {
         $hint.Text = '联网搜索已关闭；普通聊天、角色设定和本地记忆不受影响。'
     }

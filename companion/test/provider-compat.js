@@ -245,16 +245,21 @@ async function runResponsesSearchCase(fakePort, requests, testCase) {
         request_id: 'responses-search',
         player: { name: '测试玩家' },
         mode: 'in_character',
-        message: '搜索今天的新闻'
+        message: testCase.message || '搜索今天的新闻'
       });
     assert.strictEqual(response.status, 200);
     assert.strictEqual(response.body.status, 'ok');
-    assert.strictEqual(response.body.text, `${testCase.kind} responses search compatible`);
-    assert.strictEqual(response.body.citations[0].url, testCase.citationUrl);
+    assert.strictEqual(response.body.text, `${testCase.kind} responses ${testCase.searchExpected === false ? 'chat' : 'search'} compatible`);
+    if (testCase.searchExpected === false) {
+      assert.deepStrictEqual(response.body.citations, []);
+    } else {
+      assert.strictEqual(response.body.citations[0].url, testCase.citationUrl);
+    }
     assert.strictEqual(requests.length, before + 1);
     const captured = requests.at(-1);
     assert.strictEqual(captured.path, `${testCase.basePath}/responses`);
     assert.deepStrictEqual(captured.body.tools, [{ type: 'web_search' }]);
+    assert.strictEqual(Object.hasOwn(captured.body, 'tool_choice'), false);
     if (testCase.kind === 'volcengine') {
       assert.deepStrictEqual(captured.body.thinking, { type: 'disabled' });
     }
@@ -480,6 +485,11 @@ async function main() {
       const parsed = JSON.parse(body);
       if (req.url.endsWith('/responses')) {
         const isVolcengine = req.url.startsWith('/api/v3/');
+        const responseInput = Array.isArray(parsed.input) ? parsed.input.at(-1) : null;
+        const responseMessage = responseInput && typeof responseInput === 'object'
+          ? String(responseInput.content || '')
+          : '';
+        const shouldUseSearch = !responseMessage.includes('陪我聊聊天吧');
         requests.push({
           path: req.url,
           authorization: req.headers.authorization,
@@ -487,7 +497,7 @@ async function main() {
         });
         const response = JSON.stringify({
           output: [
-            {
+            ...(shouldUseSearch ? [{
               type: 'web_search_call',
               id: 'search_1',
               status: 'completed',
@@ -497,18 +507,18 @@ async function main() {
                   url: 'https://example.test/ark-live'
                 }]
               } : undefined
-            },
+            }] : []),
             {
               type: 'message',
               content: [{
                 type: 'output_text',
                 text: JSON.stringify({
-                  text: `${isVolcengine ? 'volcengine' : 'custom'} responses search compatible`,
+                  text: `${isVolcengine ? 'volcengine' : 'custom'} responses ${shouldUseSearch ? 'search' : 'chat'} compatible`,
                   emotion: 'neutral',
                   animation: 'idle',
                   memory_updates: []
                 }),
-                annotations: isVolcengine ? [] : [{
+                annotations: !shouldUseSearch || isVolcengine ? [] : [{
                   type: 'url_citation',
                   title: 'Live result',
                   url: 'https://example.test/live'
@@ -623,6 +633,13 @@ async function main() {
       basePath: '/v1',
       model: 'gpt-test',
       citationUrl: 'https://example.test/live'
+    });
+    await runResponsesSearchCase(fakePort, requests, {
+      kind: 'custom',
+      basePath: '/v1',
+      model: 'gpt-test',
+      message: '陪我聊聊天吧',
+      searchExpected: false
     });
     await runResponsesSearchCase(fakePort, requests, {
       kind: 'volcengine',
