@@ -80,7 +80,13 @@ internal sealed class CompanionClient
             }
         }
 
-        return new CompanionReply(text.Trim(), emotion, durationMs, ReadString(root, "status", "ok"));
+        IReadOnlyList<ChatCitation> citations = CompanionCitationParser.Parse(root);
+        return new CompanionReply(
+            text.Trim(),
+            emotion,
+            durationMs,
+            ReadString(root, "status", "ok"),
+            citations);
     }
 
     public async Task<ExternalMediaState> GetMediaStateAsync(CancellationToken cancellationToken)
@@ -237,7 +243,12 @@ internal sealed class CompanionClient
     private sealed record RuntimeResponse(HttpStatusCode StatusCode, bool IsSuccessStatusCode, string Json);
 }
 
-internal sealed record CompanionReply(string Text, string Emotion, int DurationMs, string Status);
+internal sealed record CompanionReply(
+    string Text,
+    string Emotion,
+    int DurationMs,
+    string Status,
+    IReadOnlyList<ChatCitation> Citations);
 
 internal sealed record CompanionHistoryMessage(string Role, string Content);
 

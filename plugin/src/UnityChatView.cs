@@ -26,6 +26,7 @@ internal sealed class UnityChatView : IChatView
     private const float HistoryRowGap = 10f;
     private const float HistoryRowMinimum = 58f;
     private const float HistoryBodyPadding = 24f;
+    private const float CitationRowHeight = 32f;
     private const int MaxHistoryRows = 24;
 
     private static readonly Color White = new(0.94f, 0.94f, 0.92f, 1f);
@@ -664,10 +665,16 @@ internal sealed class UnityChatView : IChatView
             body.enableWordWrapping = true;
             body.alignment = TextAlignmentOptions.TopLeft;
             Vector2 preferred = body.GetPreferredValues(message.Text, bodyWidth, Mathf.Infinity);
+            int citationCount = Math.Min(5, message.Citations?.Count ?? 0);
+            bool hasCitations = citationCount > 0;
+            body.rectTransform.offsetMin = new Vector2(54f, hasCitations ? 38f : 8f);
+            ConfigureCitationButtons(row, message.Citations, citationCount);
             // TMP can render a wrapped line outside a short stretched RectTransform.
             // Leave enough vertical room for the measured text plus both padding and
             // keep overflow clipped so adjacent script entries cannot visually overlap.
-            float rowHeight = Mathf.Max(HistoryRowMinimum, Mathf.Ceil(preferred.y) + HistoryBodyPadding);
+            float rowHeight = Mathf.Max(
+                HistoryRowMinimum,
+                Mathf.Ceil(preferred.y) + HistoryBodyPadding + (hasCitations ? CitationRowHeight : 0f));
             rowRect.sizeDelta = new Vector2(0f, rowHeight);
             body.overflowMode = TextOverflowModes.Truncate;
 
@@ -757,9 +764,59 @@ internal sealed class UnityChatView : IChatView
         speaker.alignment = TextAlignmentOptions.Top;
         SetAnchored(speaker.rectTransform, 5f, -9f, 42f, 28f, false, true);
 
-        var row = new HistoryRowView(root, rect, body, portrait, speaker);
+        var sourceButtons = new List<Button>();
+        var sourceLabels = new List<TextMeshProUGUI>();
+        for (int sourceIndex = 0; sourceIndex < 5; sourceIndex++)
+        {
+            Button sourceButton = AddButton(
+                $"Source{sourceIndex + 1}",
+                root.transform,
+                string.Empty,
+                54f + sourceIndex * 46f,
+                6f,
+                40f,
+                24f,
+                () => { },
+                false,
+                false);
+            TextMeshProUGUI sourceLabel = sourceButton.GetComponentInChildren<TextMeshProUGUI>();
+            sourceLabel.fontSize = 13f;
+            sourceButton.gameObject.SetActive(false);
+            sourceButtons.Add(sourceButton);
+            sourceLabels.Add(sourceLabel);
+        }
+
+        var row = new HistoryRowView(root, rect, body, portrait, speaker, sourceButtons, sourceLabels);
         _historyRows.Add(row);
         return row;
+    }
+
+    private static void ConfigureCitationButtons(
+        HistoryRowView row,
+        IReadOnlyList<ChatCitation>? citations,
+        int citationCount)
+    {
+        for (int index = 0; index < row.SourceButtons.Count; index++)
+        {
+            Button button = row.SourceButtons[index];
+            bool visible = citations is not null && index < citationCount;
+            button.gameObject.SetActive(visible);
+            button.onClick.RemoveAllListeners();
+            if (!visible) continue;
+            row.SourceLabels[index].text = $"↗ {index + 1}";
+            string url = citations![index].Url;
+            button.onClick.AddListener((UnityAction)(() => OpenCitation(url)));
+        }
+    }
+
+    private static void OpenCitation(string value)
+    {
+        if (!Uri.TryCreate(value, UriKind.Absolute, out Uri? uri)
+            || (uri.Scheme != Uri.UriSchemeHttps && uri.Scheme != Uri.UriSchemeHttp))
+        {
+            return;
+        }
+        Application.OpenURL(uri.AbsoluteUri);
     }
 
     private void ScrollToBottom()
@@ -1336,13 +1393,17 @@ internal sealed class UnityChatView : IChatView
             RectTransform rect,
             TextMeshProUGUI body,
             Image portrait,
-            TextMeshProUGUI speaker)
+            TextMeshProUGUI speaker,
+            IReadOnlyList<Button> sourceButtons,
+            IReadOnlyList<TextMeshProUGUI> sourceLabels)
         {
             Root = root;
             Rect = rect;
             Body = body;
             Portrait = portrait;
             Speaker = speaker;
+            SourceButtons = sourceButtons;
+            SourceLabels = sourceLabels;
         }
 
         public GameObject Root { get; }
@@ -1354,6 +1415,10 @@ internal sealed class UnityChatView : IChatView
         public Image Portrait { get; }
 
         public TextMeshProUGUI Speaker { get; }
+
+        public IReadOnlyList<Button> SourceButtons { get; }
+
+        public IReadOnlyList<TextMeshProUGUI> SourceLabels { get; }
     }
 
     private sealed class ChatUiPreferences

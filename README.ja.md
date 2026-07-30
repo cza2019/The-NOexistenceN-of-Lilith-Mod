@@ -10,7 +10,7 @@ Steamのデスクトップペット『The NOexistenceN of Lilith』に、生成A
 
 - リリスは『The NOexistenceN of you AND me』のエンディング1（Happy Ending）後の存在として一貫して会話します。
 - 一つのパッケージで簡体字中国語、繁体字中国語、English、日本語をサポート。既定ではゲーム言語に従い、Mod設定で上書きできます。
-- OpenAI互換APIとDeepSeek、Kimi、Qwen、GLM、Volcengine Arkのプリセット。
+- Gemini ネイティブ Interactions API、OpenAI互換API、DeepSeek、Kimi、Qwen、GLM、Volcengine Arkのプリセット。
 - 会話履歴とプレイヤーの長期記憶をローカル保存。言語を切り替えても原文を翻訳・複製しません。
 - 質問に関係する場合だけ、ローカル時刻と許可された音楽アプリの情報を付加します。
 - モデル内蔵検索、Brave Search、SearXNGを任意で利用できます。検索失敗は通常会話を妨げません。
@@ -26,10 +26,19 @@ Steamのデスクトップペット『The NOexistenceN of Lilith』に、生成A
 
 パッケージにはBepInEx 6 IL2CPP、Unity基本ライブラリ、Node.js 24 LTS、自己完結型メディアブリッジが含まれます。別途インストールは不要です。詳しくは[インストール・更新・削除](docs/installation.ja.md)を参照してください。
 
+## Gemini と Google Search
+
+「Mod設定 → AI API」で「Google Gemini 公式」を選び、自分の Gemini API Key を入力します。既定はネイティブ Interactions API、安定版 `gemini-3.6-flash`、`low` 思考レベルです。すべての要求に `store=false` を設定し、複数ターンの文脈は Google 側の会話チェーンではなく、ローカルの可視 user/assistant 履歴から再構築します。
+
+「モデル内蔵検索」を選ぶと、Google Search が必要かは Gemini が判断します。通常の返答と出典はゲーム内に表示され、実際に検索した場合だけ別ウィンドウで grounded 生出力、引用、Google Search Suggestions をまとめて表示します。ランダムな一回限りのページは短時間だけメモリに置かれ、最初の読取後に破棄されます。WebView2 Evergreen Runtime がない場合は同じページを既定ブラウザーで開きます。
+
+制限されたネットワークでは、認証情報を含まない `http://` または `https://` プロキシを設定できます。優先順は明示設定、`HTTPS_PROXY/HTTP_PROXY`、直接接続で、loopback は常に迂回します。
+
 ## プライバシーとライセンス
 
 - APIキーは `%APPDATA%\LilithAI\config.json` にのみ保存されます。
 - 会話と有効にした一時コンテキストは、プレイヤーが設定したモデル／検索サービスへ送信されます。
 - ブラウザ動画、クリップボード、アクティブウィンドウ、ファイル、バッテリー、ネットワーク状態は読み取りません。
+- `store=false` は Interactions の会話チェーンを保存しない設定です。無料枠の Gemini 入出力はサービス改善に使われる場合があり、Google Search grounding の関連要求データには Google 規約の 30 日保持が適用されます。Gemini 3 はモデルが実行した検索クエリに応じて課金される場合があります。
 - 独自コードは [MIT License](LICENSE) です。キャラクター素材と第三者コンポーネントは [素材声明](ASSET-NOTICE.md) と [Third-Party Notices](THIRD-PARTY-NOTICES.md) を参照してください。
 - ゲーム本体は含まれません。Steamで『The NOexistenceN of Lilith』を正規に所有・インストールする必要があります。

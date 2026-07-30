@@ -101,6 +101,10 @@ if ($LASTEXITCODE -ne 0) { throw 'Plugin build failed.' }
     -p:PublishSingleFile=true -p:PublishTrimmed=true --nologo
 if ($LASTEXITCODE -ne 0) { throw 'Media bridge publish failed.' }
 
+& $dotnet publish (Join-Path $repo 'grounding-viewer\LilithGroundingViewer.csproj') `
+    -c Release -r win-x64 --self-contained true --nologo
+if ($LASTEXITCODE -ne 0) { throw 'Grounding viewer publish failed.' }
+
 if (Test-Path -LiteralPath $OutputDirectory) {
     Remove-Item -LiteralPath $OutputDirectory -Recurse -Force
 }
@@ -161,6 +165,35 @@ $mediaDestination = Join-Path $pluginRoot 'media-bridge'
 New-Item -ItemType Directory -Path $mediaDestination -Force | Out-Null
 Copy-Item -LiteralPath $mediaOutput -Destination (Join-Path $mediaDestination 'LilithMediaBridge.exe')
 
+$viewerOutput = Join-Path $repo 'grounding-viewer\bin\Release\net8.0-windows10.0.19041.0\win-x64\publish'
+$viewerExe = Join-Path $viewerOutput 'LilithGroundingViewer.exe'
+$viewerDll = Join-Path $viewerOutput 'LilithGroundingViewer.dll'
+if (-not (Test-Path -LiteralPath $viewerExe)) { throw "Grounding viewer output not found: $viewerExe" }
+& $dotnet $viewerDll --smoke
+if ($LASTEXITCODE -ne 0) { throw 'Grounding viewer smoke test failed.' }
+& $dotnet $viewerDll --smoke-https 'https://example.com/'
+if ($LASTEXITCODE -ne 0) { throw 'Grounding viewer rejected an HTTPS link.' }
+& $dotnet $viewerDll --smoke-https 'http://example.com/'
+if ($LASTEXITCODE -eq 0) { throw 'Grounding viewer accepted a non-HTTPS external link.' }
+$viewerDestination = Join-Path $pluginRoot 'grounding-viewer'
+New-Item -ItemType Directory -Path $viewerDestination -Force | Out-Null
+Get-ChildItem -LiteralPath $viewerOutput -Force | Where-Object { $_.Extension -ne '.pdb' } |
+    ForEach-Object { Copy-Item -LiteralPath $_.FullName -Destination $viewerDestination -Recurse }
+$nugetPackages = [Environment]::GetEnvironmentVariable('NUGET_PACKAGES', 'Process')
+if ([string]::IsNullOrWhiteSpace($nugetPackages)) {
+    $nugetPackages = Join-Path ([Environment]::GetFolderPath('UserProfile')) '.nuget\packages'
+}
+$webViewPackage = Join-Path $nugetPackages 'microsoft.web.webview2\1.0.4078.44'
+$webViewLicense = Join-Path $webViewPackage 'LICENSE.txt'
+$webViewNotice = Join-Path $webViewPackage 'NOTICE.txt'
+foreach ($requiredWebViewFile in @($webViewLicense, $webViewNotice)) {
+    if (-not (Test-Path -LiteralPath $requiredWebViewFile)) {
+        throw "WebView2 license file not found after restore: $requiredWebViewFile"
+    }
+}
+Copy-Item -LiteralPath $webViewLicense -Destination (Join-Path $viewerDestination 'WebView2-LICENSE.txt')
+Copy-Item -LiteralPath $webViewNotice -Destination (Join-Path $viewerDestination 'WebView2-NOTICE.txt')
+
 foreach ($file in @('README.md', 'README.zh-TW.md', 'README.en.md', 'README.ja.md', 'LICENSE', 'ASSET-NOTICE.md', 'THIRD-PARTY-NOTICES.md', 'CHANGELOG.md')) {
     Copy-Item -LiteralPath (Join-Path $repo $file) -Destination $OutputDirectory
 }
@@ -184,6 +217,8 @@ $releaseManifest = [ordered]@{
     unity_base_libraries_sha256 = $unityBaseLibrariesSha256
     node = $nodeVersion
     media_bridge = 'self-contained net8.0 win-x64'
+    grounding_viewer = 'self-contained net8.0 win-x64'
+    webview2 = '1.0.4078.44 (Evergreen Runtime required)'
     built_at_utc = [DateTime]::UtcNow.ToString('o')
 }
 [IO.File]::WriteAllText(

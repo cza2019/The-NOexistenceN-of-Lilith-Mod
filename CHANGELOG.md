@@ -2,10 +2,14 @@
 
 ## Unreleased
 
-## 0.3.0 - 四语本地化
+## 0.3.0 - 四语本地化与 Gemini
 
 ### 新增
 
+- 新增 Google Gemini 官方预设，使用原生 Interactions API；默认 `gemini-3.6-flash`、`low` 思考强度及 `store=false`。
+- 支持 Gemini 自主调用 Google Search、聊天内来源链接与包含 grounded 原始输出、引用、Search Suggestions 的独立一次性结果窗口。
+- 新增固定 WebView2 `1.0.4078.44` 的自包含 grounding viewer；单实例复用、跟随 Companion 退出，缺少 Evergreen Runtime 时回退默认浏览器。
+- 新增无认证 HTTP/HTTPS 代理设置，统一用于设置测试、模型和搜索请求；显式设置优先于环境变量，loopback 始终绕过。
 - “一起听歌吧”支持 QQ音乐、网易云音乐、Spotify、Apple Music 和 Amazon Music；优先播放器不可用时会自动尝试其他已安装播放器。
 - Spotify、Apple Music 和 Amazon Music 同时支持桌面版路径发现与 Windows Store 应用激活；SMTC 媒体状态可继续驱动原生音乐动作和本机媒体上下文。
 - 一个通用安装包支持简体中文、繁體中文、English 与日本語，默认跟随游戏语言并允许手动覆盖。
@@ -20,6 +24,7 @@
 - 协议 v1 新增可选 `locale` 字段；旧插件或缺少字段的请求安全回退简体中文。
 - 不修改游戏本体文本，原生菜单、随机台词和互动继续使用官方本地化。
 - 翻译静态随 Mod 分发，运行时不调用翻译模型，也不产生额外 API 费用。
+- Gemini 的 thought、签名、搜索步骤与 Search Suggestions 不写入会话文件；旧配置继续兼容并保持原搜索选择。
 
 ## 0.2.0 - 首个公开版本
 

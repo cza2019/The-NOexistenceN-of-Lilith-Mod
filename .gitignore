@@ -7,6 +7,8 @@ plugin/obj/
 media-bridge/bin/
 media-bridge/obj/
 media-bridge/publish/
+grounding-viewer/bin/
+grounding-viewer/obj/
 tests/**/bin/
 tests/**/obj/
 dist/

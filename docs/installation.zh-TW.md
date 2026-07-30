@@ -10,6 +10,15 @@
 
 安裝包已包含 BepInEx、Node.js 與媒體橋接；不需要全域安裝或固定 Node 版本。Mod 設定使用 Windows 10/11 內建的 Windows PowerShell 5.1。
 
+## 設定 Gemini
+
+1. 在 Google AI Studio 建立自己的 Gemini API Key，並確認所在地區可使用 Gemini API 與 Google Search grounding。
+2. 在「Mod 設定 → AI API」選擇「Google Gemini 官方」；官方 Base URL、`gemini-3.6-flash`、Interactions API 與 `low` 思考強度會自動填入。
+3. 需要即時資料時選擇「模型內建搜尋」，或改用關閉、Brave Search、SearXNG。只有 Gemini 實際搜尋時才會開啟獨立視窗並產生相應費用。
+4. 無法直接連線 Google 時可填入不含驗證資訊的 HTTP/HTTPS 代理；設定測試與遊戲內請求共用相同代理。
+
+結果視窗使用 Windows 10/11 通常已有的 WebView2 Evergreen Runtime；缺少時會以預設瀏覽器開啟相同的一次性頁面。`store=false` 只停用代管會話鏈，免費配額資料用途與 Search grounding 相關請求保留 30 天仍依 Google 條款。
+
 ## 升級
 
 完全結束遊戲後，用新 ZIP 覆蓋相同目錄。`%APPDATA%\LilithAI` 中的 API 設定、會話與玩家記憶不會被安裝包覆蓋。切換 Mod 語言不會翻譯歷史或長期記憶。
@@ -24,3 +33,5 @@
 - 設定無法開啟：確認 `BepInEx\plugins\companion\configure.ps1` 與 `BepInEx\plugins\locales` 完整存在。
 - 字型缺字：先確認遊戲本體已切換到對應語言；Mod 會沿用遊戲 TMP 字型與其 fallback。
 - 回報日誌前請移除私人對話、玩家稱呼與本機路徑。
+- Gemini 無法連線時，請檢查地區、Key、Base URL 與代理；不支援含帳密或 SOCKS 的代理。
+- 獨立搜尋視窗只在模型實際呼叫 Google Search 後開啟；請檢查 WebView2、預設瀏覽器與安全軟體。

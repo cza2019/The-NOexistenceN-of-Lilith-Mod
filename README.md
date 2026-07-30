@@ -12,10 +12,10 @@
 
 - 以《不/存在的你，和我》结局 1（即 Happy Ending）之后的莉莉丝为固定角色背景。
 - 一个安装包完整支持简体中文、繁體中文、English 和日本語；默认跟随游戏，也可在 Mod 设置中覆盖。
-- 支持 OpenAI兼容接口及 DeepSeek、Kimi、Qwen、GLM、火山方舟等预设。
+- 支持 Gemini 原生 Interactions API、OpenAI兼容接口及 DeepSeek、Kimi、Qwen、GLM、火山方舟等预设。
 - 本地保存当前会话和莉莉丝对玩家的长期记忆，支持手动查看、修改和迁移。
 - 仅在相关问题中读取本机时间和白名单音乐软件的曲名、歌手及播放状态。
-- 可选模型内置搜索、Brave Search 或 SearXNG；搜索失败不影响普通聊天。
+- 可选 Gemini Google Search、其他模型内置搜索、Brave Search 或 SearXNG；搜索失败不影响普通聊天。
 - 游戏内 Unity聊天窗口、头顶文字回复、对话历史和角色气泡点击入口。
 - QQ音乐、网易云音乐等播放器冷启动与游戏原生音乐动作联动；排除浏览器视频。
 - 默认关闭的实验性跨屏拖动优化：改善副屏无任务栏时角色踩空，适配上下或错位排列的多屏拖动；需先开启游戏原生“跨屏拖动”。
@@ -36,6 +36,14 @@
 
 详细步骤参见 [安装、升级与卸载](docs/installation.md)。
 
+## Gemini 与 Google Search
+
+在“Mod设置 → AI API”选择“Google Gemini 官方”，填写玩家自己的 Gemini API Key。默认使用稳定版 `gemini-3.6-flash`、`low` 思考强度和原生 Interactions API；也可从列表选择其他受支持模型或手工输入模型名。请求始终使用 `store=false`，不会创建 Google 托管的多轮会话链；跨轮上下文只来自本机保存的可见 user/assistant 对话。
+
+选择“模型内置搜索”后，Gemini 会自行判断是否调用 Google Search。普通回复和来源仍显示在游戏聊天中；只有实际产生搜索调用时，Mod 才自动打开独立结果窗口，同时展示本轮 grounded 原始输出、来源和 Google Search Suggestions。该一次性页面只在内存保留很短时间，首次读取即销毁，不写入聊天历史。缺少 WebView2 Evergreen Runtime 时会改用默认浏览器打开同一页面。
+
+Google 服务不可直连的网络可填写无认证的 `http://` 或 `https://` 代理。优先级为设置中的代理、`HTTPS_PROXY/HTTP_PROXY`、直连；`localhost/127.0.0.1` 始终绕过代理。
+
 ## API 与隐私
 
 - API密钥只保存在玩家本机 `%APPDATA%\LilithAI\config.json`。
@@ -43,6 +51,7 @@
 - 本机状态默认只包含时间和白名单音乐软件媒体信息，且仅在话题相关时附加。
 - 浏览器视频、剪贴板、活动窗口、文件、电池和网络状态不会被读取。
 - 使用付费模型产生的费用由模型服务商向玩家收取，请自行设置额度。
+- `store=false` 只表示不保存 Interactions 会话链。Gemini 免费配额的输入输出可能用于改进服务；Google Search grounding 相关请求数据仍按 Google 条款保留 30 天，Gemini 3 按模型实际执行的搜索查询计费。
 - 发布包和源码仓库不包含作者或测试者的 API密钥、聊天历史、玩家记忆或存档。
 
 ## 更新与故障排查

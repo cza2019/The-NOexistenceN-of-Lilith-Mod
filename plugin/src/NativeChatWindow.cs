@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
@@ -124,14 +125,27 @@ internal sealed class NativeChatWindow : IDisposable
         }
     }
 
-    public void AppendMessage(string speaker, string text)
+    public void AppendMessage(
+        string speaker,
+        string text,
+        IReadOnlyList<ChatCitation>? citations = null)
     {
         string value = text.Trim();
         if (value.Length == 0)
         {
             return;
         }
-        _pendingHistory.Enqueue($"{speaker}：{value}");
+        var entry = new StringBuilder($"{speaker}：{value}");
+        if (citations is not null)
+        {
+            for (int index = 0; index < Math.Min(5, citations.Count); index++)
+            {
+                ChatCitation citation = citations[index];
+                entry.Append("\r\n");
+                entry.Append($"[{index + 1}] {citation.Title}\r\n{citation.Url}");
+            }
+        }
+        _pendingHistory.Enqueue(entry.ToString());
         if (_window != IntPtr.Zero)
         {
             PostMessage(_window, WmAppRenderHistory, IntPtr.Zero, IntPtr.Zero);

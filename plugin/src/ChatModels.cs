@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Text.Json;
 
 namespace LilithMod;
 
@@ -16,7 +17,52 @@ internal enum ChatOpenReason
     LilithBubble
 }
 
-internal sealed record ChatMessage(ChatSpeaker Speaker, string Text);
+internal sealed record ChatCitation(string Title, string Url);
+
+internal sealed record ChatMessage(
+    ChatSpeaker Speaker,
+    string Text,
+    IReadOnlyList<ChatCitation>? Citations = null);
+
+internal static class CompanionCitationParser
+{
+    public static IReadOnlyList<ChatCitation> Parse(JsonElement root)
+    {
+        var citations = new List<ChatCitation>();
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        if (!root.TryGetProperty("citations", out JsonElement value)
+            || value.ValueKind != JsonValueKind.Array)
+        {
+            return citations;
+        }
+        foreach (JsonElement item in value.EnumerateArray())
+        {
+            if (citations.Count >= 5)
+            {
+                break;
+            }
+            if (item.ValueKind != JsonValueKind.Object) continue;
+            string url = item.TryGetProperty("url", out JsonElement urlValue)
+                && urlValue.ValueKind == JsonValueKind.String
+                ? (urlValue.GetString() ?? string.Empty).Trim()
+                : string.Empty;
+            if (!Uri.TryCreate(url, UriKind.Absolute, out Uri? uri)
+                || (uri.Scheme != Uri.UriSchemeHttps && uri.Scheme != Uri.UriSchemeHttp)
+                || !seen.Add(uri.AbsoluteUri))
+            {
+                continue;
+            }
+            string title = item.TryGetProperty("title", out JsonElement titleValue)
+                && titleValue.ValueKind == JsonValueKind.String
+                ? (titleValue.GetString() ?? string.Empty).Trim()
+                : string.Empty;
+            citations.Add(new ChatCitation(
+                title.Length > 160 ? title[..160] : title,
+                uri.AbsoluteUri.Length > 500 ? uri.AbsoluteUri[..500] : uri.AbsoluteUri));
+        }
+        return citations;
+    }
+}
 
 internal static class NoteConversationText
 {
@@ -167,7 +213,7 @@ internal sealed class ChatViewModel
             int serverStart = _messages.Count - candidate;
             for (int index = 0; index < candidate; index++)
             {
-                if (_messages[serverStart + index] != local[index])
+                if (!SameVisibleMessage(_messages[serverStart + index], local[index]))
                 {
                     matches = false;
                     break;
@@ -176,6 +222,17 @@ internal sealed class ChatViewModel
             if (matches)
             {
                 overlap = candidate;
+                for (int index = 0; index < candidate; index++)
+                {
+                    if (local[index].Citations is { Count: > 0 })
+                    {
+                        int messageIndex = serverStart + index;
+                        _messages[messageIndex] = _messages[messageIndex] with
+                        {
+                            Citations = local[index].Citations
+                        };
+                    }
+                }
                 break;
             }
         }
@@ -185,12 +242,21 @@ internal sealed class ChatViewModel
         }
     }
 
-    public void Add(ChatSpeaker speaker, string text)
+    private static bool SameVisibleMessage(ChatMessage left, ChatMessage right)
+    {
+        return left.Speaker == right.Speaker
+            && string.Equals(left.Text, right.Text, StringComparison.Ordinal);
+    }
+
+    public void Add(
+        ChatSpeaker speaker,
+        string text,
+        IReadOnlyList<ChatCitation>? citations = null)
     {
         string normalized = text.Trim();
         if (normalized.Length > 0)
         {
-            _messages.Add(new ChatMessage(speaker, normalized));
+            _messages.Add(new ChatMessage(speaker, normalized, citations));
         }
     }
 

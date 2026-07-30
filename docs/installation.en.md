@@ -10,6 +10,15 @@
 
 The package already contains BepInEx, Node.js, and the media bridge. Players do not install or pin Node globally. Mod Settings uses Windows PowerShell 5.1 included with Windows 10/11.
 
+## Configure Gemini
+
+1. Create your own Gemini API key in Google AI Studio and confirm Gemini API and Google Search grounding are available in your region.
+2. Under **Mod Settings → AI API**, choose **Google Gemini official**. The preset fills the official Base URL, `gemini-3.6-flash`, native Interactions API, and `low` thinking.
+3. Select **Built into model** for model-directed Google Search, or keep Search off/use Brave/SearXNG. The separate viewer and Search billing occur only when Gemini actually executes a search.
+4. If Google cannot be reached directly, enter an unauthenticated HTTP/HTTPS proxy. The settings test and in-game Companion use the same proxy path.
+
+The viewer uses the Microsoft Edge WebView2 Evergreen Runtime normally present on Windows 10/11. If it is missing, the same one-time page opens in the default browser with the grounded output, citations, and Search Suggestions intact. `store=false` disables the hosted interaction chain only; free-tier data use and the 30-day Search-grounding request retention remain governed by Google's terms.
+
 ## Update
 
 Fully quit the game, then overwrite the old files with the new ZIP. API settings, sessions, and player memories under `%APPDATA%\LilithAI` are not overwritten. Changing the Mod language does not translate history or long-term memories.
@@ -23,4 +32,6 @@ After quitting the game, remove the bundled BepInEx/Doorstop files or verify gam
 - Mod not loaded: make sure `winhttp.dll` is beside `Lilith.exe`, then inspect `BepInEx\LogOutput.log`.
 - Settings do not open: check that `BepInEx\plugins\companion\configure.ps1` and `BepInEx\plugins\locales` exist.
 - Missing glyphs: set the base game to the matching language first. The Mod reuses the game's TMP font and fallbacks.
+- Gemini cannot connect: check regional availability, key, Base URL, and proxy. Authenticated or SOCKS proxies are not accepted.
+- No separate Search window: it opens only after an actual Google Search call. Check WebView2/default-browser availability and security-software blocks.
 - Remove private dialogue, player names, and local paths before sharing logs.

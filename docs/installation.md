@@ -21,6 +21,15 @@
 6. 从 Steam启动游戏。首次运行会使用包内附带的 Unity基础库在本地生成 BepInEx IL2CPP缓存，耗时可能较长，但不需要连接 `unity.bepinex.dev`。
 7. 打开“Mod设置 → 其他”，选择跟随游戏或手动指定 Mod 语言；再按需配置模型服务并点击“测试连接”。
 
+## 配置 Gemini
+
+1. 在 Google AI Studio 创建玩家自己的 Gemini API Key，并确认账号所在地区可使用 Gemini API 与 Google Search grounding。
+2. 打开“Mod设置 → AI API”，选择“Google Gemini 官方”。默认 Base URL、`gemini-3.6-flash`、Interactions API 与 `low` 思考强度会自动填写。
+3. 需要实时资料时选择“模型内置搜索”；否则选择关闭、Brave Search 或 SearXNG。仅当 Gemini 实际调用 Google Search 时才会打开独立结果窗口并产生相应搜索费用。
+4. 若 Google API 无法直连，可填写无认证的 HTTP/HTTPS 代理。代理同时用于设置测试和游戏内 Companion 请求。
+
+结果窗口依赖 Microsoft Edge WebView2 Evergreen Runtime。Windows 10/11 通常已安装；缺失时 Mod 会使用默认浏览器打开同一个一次性页面，grounded 输出、来源和 Search Suggestions 不会缺失。`store=false` 不等于所有数据均不保留：免费配额数据使用和 Search grounding 的 30 天相关请求保留仍以 Google 条款为准。
+
 ## 跨屏拖动优化（实验性）
 
 该选项默认关闭。它优化副屏无任务栏时角色踩空的情况，并适配上下或错位排列的多屏拖动。
@@ -53,7 +62,7 @@
 - Mod发布包附带的根目录许可证和说明文件
 
 如果还有其他 BepInEx Mod，只删除 `BepInEx/plugins` 中本 Mod对应的 DLL、
-`companion`、`character`、`assets` 和 `media-bridge`，不要删除共用的加载器。
+`companion`、`character`、`assets`、`media-bridge` 和 `grounding-viewer`，不要删除共用的加载器。
 
 卸载默认保留 `%APPDATA%\LilithAI`。希望彻底清除 API配置、对话和玩家记忆时，
 确认备份后再手动删除该目录。
@@ -65,6 +74,8 @@
 - **首次启动很慢**：BepInEx首次生成 IL2CPP缓存属于正常情况。
 - **日志提示正在下载 Unity base libraries**：正常发布包已经包含 `BepInEx/unity-libs/2021.3.45.zip`。如果仍尝试下载，请重新下载完整ZIP并核对SHA-256，确认该文件没有被安全软件删除。
 - **没有AI回复**：先在 Mod设置中测试 API连接，并确认模型名称、Base URL和接口类型。
+- **Gemini 无法连接**：确认地区、API Key、Base URL 和可选代理；代理不能包含用户名或密码，也不能使用 SOCKS 地址。
+- **搜索后没有独立窗口**：只有模型实际调用 Google Search 时才会打开；若已调用，检查 WebView2 Runtime、默认浏览器和安全软件是否拦截 `LilithGroundingViewer.exe`。
 - **音乐软件没有启动**：检查设置中的优先播放器以及该播放器是否已安装。
 - **副屏拖不过去或角色没有触底**：确认游戏“设置 → 控制”中的“跨屏拖动”和 Mod设置中的实验性优化均已开启；关闭实验性选项可恢复原游戏行为。
 - **安全软件告警**：只从项目正式 Release下载并核对 SHA-256，不要从第三方重新打包站获取。

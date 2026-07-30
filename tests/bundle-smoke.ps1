@@ -35,6 +35,26 @@ foreach ($relative in $localizedFiles) {
         throw "Localized bundle file is missing: $relative"
     }
 }
+$viewerRoot = Join-Path $bundle 'BepInEx\plugins\grounding-viewer'
+$viewerExe = Join-Path $viewerRoot 'LilithGroundingViewer.exe'
+foreach ($viewerFile in @(
+    $viewerExe,
+    (Join-Path $viewerRoot 'WebView2Loader.dll'),
+    (Join-Path $viewerRoot 'WebView2-LICENSE.txt'),
+    (Join-Path $viewerRoot 'WebView2-NOTICE.txt')
+)) {
+    if (-not (Test-Path -LiteralPath $viewerFile)) {
+        throw "Grounding viewer bundle file is missing: $viewerFile"
+    }
+}
+$viewerSmoke = Start-Process -FilePath $viewerExe `
+    -ArgumentList '--smoke' -WindowStyle Hidden -Wait -PassThru
+if ($viewerSmoke.ExitCode -ne 0) { throw 'Bundled grounding viewer smoke test failed.' }
+$releaseManifest = Get-Content -LiteralPath (Join-Path $bundle 'RELEASE-MANIFEST.json') `
+    -Raw -Encoding UTF8 | ConvertFrom-Json
+if ([string]$releaseManifest.webview2 -notmatch '1\.0\.4078\.44') {
+    throw 'Release manifest does not record the expected WebView2 SDK version.'
+}
 $unityLibraries = Join-Path $bundle 'BepInEx\unity-libs\2021.3.45.zip'
 if (-not (Test-Path -LiteralPath $unityLibraries)) {
     throw 'Bundled Unity 2021.3.45 base libraries are missing.'
@@ -80,9 +100,10 @@ try {
     $env:LILITH_AI_DATA_DIR = $temp
     $env:LILITH_CHARACTER_FILE = $null
     $env:LILITH_LORE_FILE = $null
+    $serverScript = Join-Path $bundle 'BepInEx\plugins\companion\src\server.js'
     $process = Start-Process `
         -FilePath (Join-Path $bundle 'BepInEx\plugins\companion\node.exe') `
-        -ArgumentList (Join-Path $bundle 'BepInEx\plugins\companion\src\server.js') `
+        -ArgumentList ('"{0}"' -f $serverScript) `
         -WorkingDirectory (Join-Path $bundle 'BepInEx\plugins\companion') `
         -WindowStyle Hidden `
         -PassThru `

@@ -38,13 +38,13 @@ internal static class CompanionTasks
         string message,
         string locale,
         CancellationToken cancellationToken,
-        Action<string, string, int, string> onSuccess,
+        Action<string, string, int, string, IReadOnlyList<ChatCitation>> onSuccess,
         Action<string> onError)
     {
         try
         {
             CompanionReply reply = await client.SendAsync(sessionId, playerName, message, locale, cancellationToken).ConfigureAwait(false);
-            onSuccess(reply.Text, reply.Emotion, reply.DurationMs, reply.Status);
+            onSuccess(reply.Text, reply.Emotion, reply.DurationMs, reply.Status, reply.Citations);
         }
         catch (OperationCanceledException)
         {

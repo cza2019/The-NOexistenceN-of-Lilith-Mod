@@ -143,6 +143,11 @@ if ($null -eq $config.ui) {
 if ($null -eq $config.web_search) {
     Set-JsonProperty $config 'web_search' ([pscustomobject]@{})
 }
+if ($null -eq $config.network) {
+    Set-JsonProperty $config 'network' ([pscustomobject]@{ proxy_url = '' })
+} elseif ($null -eq $config.network.PSObject.Properties['proxy_url']) {
+    Set-JsonProperty $config.network 'proxy_url' ''
+}
 if ($null -eq $config.conversation) {
     Set-JsonProperty $config 'conversation' ([pscustomobject]@{
         reply_max_chars = 100
@@ -211,6 +216,7 @@ if ($null -eq $config.memory) {
 
 $provider = $config.provider
 $webSearch = $config.web_search
+$network = $config.network
 $conversation = $config.conversation
 $music = $config.music
 $localContext = $config.local_context
@@ -458,10 +464,10 @@ $existingBackend = [string]$webSearch.backend
 $existingSearchKey = [string]$webSearch.api_key
 $existingSearchBase = [string]$webSearch.base_url
 $providerKind = [string]$config.active_provider
-if ($providerKind -notin @('custom', 'volcengine', 'deepseek', 'kimi', 'qwen', 'glm')) {
+if ($providerKind -notin @('custom', 'volcengine', 'deepseek', 'kimi', 'qwen', 'glm', 'gemini')) {
     $providerKind = [string]$provider.kind
 }
-if ($providerKind -notin @('custom', 'volcengine', 'deepseek', 'kimi', 'qwen', 'glm')) {
+if ($providerKind -notin @('custom', 'volcengine', 'deepseek', 'kimi', 'qwen', 'glm', 'gemini')) {
     $providerKind = if ([string]$provider.base_url -match 'ark\.cn-beijing\.volces\.com') {
         'volcengine'
     } elseif ([string]$provider.base_url -match 'api\.deepseek\.com') {
@@ -472,6 +478,8 @@ if ($providerKind -notin @('custom', 'volcengine', 'deepseek', 'kimi', 'qwen', '
         'qwen'
     } elseif ([string]$provider.base_url -match 'open\.bigmodel\.cn') {
         'glm'
+    } elseif ([string]$provider.base_url -match 'generativelanguage\.googleapis\.com') {
+        'gemini'
     } else {
         'custom'
     }
@@ -484,6 +492,7 @@ function New-ProviderProfile([string] $Kind) {
         'kimi' { @{ base_url = 'https://api.moonshot.cn/v1'; model = 'kimi-k3'; wire_api = 'chat_completions'; thinking_mode = 'disabled' } }
         'qwen' { @{ base_url = 'https://dashscope.aliyuncs.com/compatible-mode/v1'; model = 'qwen3.5-flash'; wire_api = 'chat_completions'; thinking_mode = 'disabled' } }
         'glm' { @{ base_url = 'https://open.bigmodel.cn/api/paas/v4'; model = 'glm-4.7-flash'; wire_api = 'chat_completions'; thinking_mode = 'disabled' } }
+        'gemini' { @{ base_url = 'https://generativelanguage.googleapis.com/v1beta'; model = 'gemini-3.6-flash'; wire_api = 'gemini_interactions'; thinking_mode = 'default' } }
         default { @{ base_url = ''; model = ''; wire_api = 'chat_completions'; thinking_mode = 'default' } }
     }
     return [pscustomobject]@{
@@ -493,7 +502,7 @@ function New-ProviderProfile([string] $Kind) {
         model = $values.model
         wire_api = $values.wire_api
         thinking_mode = $values.thinking_mode
-        reasoning_effort = ''
+        reasoning_effort = $(if ($Kind -eq 'gemini') { 'low' } else { '' })
         search_tool = 'web_search'
         timeout_ms = 30000
         temperature = 0.75
@@ -511,7 +520,10 @@ function Merge-ProviderProfile([object] $Target, [object] $Source) {
 
 $profiles = @{}
 $storedProfiles = $config.provider_profiles
-foreach ($kind in @('custom', 'volcengine', 'deepseek', 'kimi', 'qwen', 'glm')) {
+$geminiProfileWasStored = ($null -ne $storedProfiles `
+    -and $null -ne $storedProfiles.PSObject.Properties['gemini']) `
+    -or $providerKind -eq 'gemini'
+foreach ($kind in @('custom', 'volcengine', 'deepseek', 'kimi', 'qwen', 'glm', 'gemini')) {
     $profile = New-ProviderProfile $kind
     $stored = if ($null -ne $storedProfiles) { $storedProfiles.PSObject.Properties[$kind].Value } else { $null }
     $profile = Merge-ProviderProfile $profile $stored
@@ -545,6 +557,7 @@ $tabs.Location = New-Object System.Drawing.Point(4, 4)
 $tabs.Size = New-Object System.Drawing.Size(612, 580)
 $apiPage = New-Object System.Windows.Forms.TabPage
 $apiPage.Text = L 'settings.tab_api'
+$apiPage.AutoScroll = $true
 $musicPage = New-Object System.Windows.Forms.TabPage
 $musicPage.Text = L 'settings.tab_other'
 $musicPage.AutoScroll = $true
@@ -560,7 +573,7 @@ $form.Controls.Add($tabs)
 
 $intro = New-Object System.Windows.Forms.Label
 $intro.Location = New-Object System.Drawing.Point(20, 16)
-$intro.Size = New-Object System.Drawing.Size(580, 32)
+$intro.Size = New-Object System.Drawing.Size(550, 32)
 $intro.Text = L 'settings.api_intro'
 $apiPage.Controls.Add($intro)
 
@@ -575,7 +588,7 @@ function Add-Label([string] $text, [int] $x, [int] $y, [int] $width = 260) {
 Add-Label (L 'settings.provider') 20 54
 $providerPreset = New-Object LilithComboBox
 $providerPreset.Location = New-Object System.Drawing.Point(20, 75)
-$providerPreset.Size = New-Object System.Drawing.Size(580, 24)
+$providerPreset.Size = New-Object System.Drawing.Size(550, 24)
 $providerPreset.DropDownStyle = 'DropDownList'
 [void]$providerPreset.Items.Add((L 'settings.custom'))
 [void]$providerPreset.Items.Add((L 'settings.volcengine'))
@@ -583,12 +596,14 @@ $providerPreset.DropDownStyle = 'DropDownList'
 [void]$providerPreset.Items.Add((L 'settings.kimi'))
 [void]$providerPreset.Items.Add((L 'settings.qwen'))
 [void]$providerPreset.Items.Add((L 'settings.glm'))
+[void]$providerPreset.Items.Add((L 'settings.gemini'))
 $providerPreset.SelectedIndex = switch ($providerKind) {
     'volcengine' { 1 }
     'deepseek' { 2 }
     'kimi' { 3 }
     'qwen' { 4 }
     'glm' { 5 }
+    'gemini' { 6 }
     default { 0 }
 }
 $apiPage.Controls.Add($providerPreset)
@@ -596,19 +611,19 @@ $apiPage.Controls.Add($providerPreset)
 Add-Label 'Base URL' 20 109
 $baseUrl = New-Object System.Windows.Forms.TextBox
 $baseUrl.Location = New-Object System.Drawing.Point(20, 130)
-$baseUrl.Size = New-Object System.Drawing.Size(580, 24)
+$baseUrl.Size = New-Object System.Drawing.Size(550, 24)
 $baseUrl.Text = [string]$provider.base_url
 $apiPage.Controls.Add($baseUrl)
 
 Add-Label (L 'settings.api_key') 20 164 380
 $apiKey = New-Object System.Windows.Forms.TextBox
 $apiKey.Location = New-Object System.Drawing.Point(20, 185)
-$apiKey.Size = New-Object System.Drawing.Size(465, 24)
+$apiKey.Size = New-Object System.Drawing.Size(435, 24)
 $apiKey.UseSystemPasswordChar = $true
 $apiPage.Controls.Add($apiKey)
 
 $showKey = New-Object System.Windows.Forms.CheckBox
-$showKey.Location = New-Object System.Drawing.Point(494, 186)
+$showKey.Location = New-Object System.Drawing.Point(464, 186)
 $showKey.Size = New-Object System.Drawing.Size(106, 24)
 $showKey.Text = L 'settings.show_key'
 $showKey.Add_CheckedChanged({ $apiKey.UseSystemPasswordChar = -not $showKey.Checked })
@@ -617,7 +632,7 @@ $apiPage.Controls.Add($showKey)
 Add-Label (L 'settings.model') 20 219
 $model = New-Object LilithComboBox
 $model.Location = New-Object System.Drawing.Point(20, 240)
-$model.Size = New-Object System.Drawing.Size(580, 24)
+$model.Size = New-Object System.Drawing.Size(550, 24)
 $model.DropDownStyle = 'DropDown'
 $apiPage.Controls.Add($model)
 
@@ -646,6 +661,9 @@ switch ($providerKind) {
     'glm' {
         Set-ModelChoices @('glm-4.7-flash', 'glm-4.7-flashx', 'glm-5.2') ([string]$provider.model)
     }
+    'gemini' {
+        Set-ModelChoices @('gemini-3.6-flash', 'gemini-3.5-flash', 'gemini-3.5-flash-lite', 'gemini-2.5-pro', 'gemini-2.5-flash', 'gemini-2.5-flash-lite') ([string]$provider.model)
+    }
     default {
         Set-ModelChoices @() ([string]$provider.model)
     }
@@ -658,18 +676,19 @@ $wireApi.Size = New-Object System.Drawing.Size(270, 24)
 $wireApi.DropDownStyle = 'DropDownList'
 [void]$wireApi.Items.Add('chat_completions')
 [void]$wireApi.Items.Add('responses')
+[void]$wireApi.Items.Add('gemini_interactions')
 $selectedWire = [string]$provider.wire_api
-if ($selectedWire -notin @('chat_completions', 'responses')) { $selectedWire = 'chat_completions' }
+if ($selectedWire -notin @('chat_completions', 'responses', 'gemini_interactions')) { $selectedWire = 'chat_completions' }
 $wireApi.SelectedItem = $selectedWire
 $apiPage.Controls.Add($wireApi)
 
 $reasoningLabel = New-Object System.Windows.Forms.Label
 $reasoningLabel.Location = New-Object System.Drawing.Point(310, 274)
-$reasoningLabel.Size = New-Object System.Drawing.Size(290, 20)
+$reasoningLabel.Size = New-Object System.Drawing.Size(260, 20)
 $apiPage.Controls.Add($reasoningLabel)
 $reasoning = New-Object LilithComboBox
 $reasoning.Location = New-Object System.Drawing.Point(310, 295)
-$reasoning.Size = New-Object System.Drawing.Size(290, 24)
+$reasoning.Size = New-Object System.Drawing.Size(260, 24)
 $reasoning.DropDownStyle = 'DropDownList'
 $apiPage.Controls.Add($reasoning)
 
@@ -695,22 +714,22 @@ $selectedSearchIndex = if (-not [bool]$webSearch.enabled) {
 $searchBackend.SelectedIndex = $selectedSearchIndex
 $apiPage.Controls.Add($searchBackend)
 
-Add-Label (L 'settings.searxng_url') 310 335 290
+Add-Label (L 'settings.searxng_url') 310 335 260
 $searchBase = New-Object System.Windows.Forms.TextBox
 $searchBase.Location = New-Object System.Drawing.Point(310, 356)
-$searchBase.Size = New-Object System.Drawing.Size(290, 24)
+$searchBase.Size = New-Object System.Drawing.Size(260, 24)
 $searchBase.Text = $existingSearchBase
 $apiPage.Controls.Add($searchBase)
 
 Add-Label (L 'settings.search_key') 20 390 380
 $searchKey = New-Object System.Windows.Forms.TextBox
 $searchKey.Location = New-Object System.Drawing.Point(20, 411)
-$searchKey.Size = New-Object System.Drawing.Size(465, 24)
+$searchKey.Size = New-Object System.Drawing.Size(435, 24)
 $searchKey.UseSystemPasswordChar = $true
 $apiPage.Controls.Add($searchKey)
 
 $showSearchKey = New-Object System.Windows.Forms.CheckBox
-$showSearchKey.Location = New-Object System.Drawing.Point(494, 412)
+$showSearchKey.Location = New-Object System.Drawing.Point(464, 412)
 $showSearchKey.Size = New-Object System.Drawing.Size(106, 24)
 $showSearchKey.Text = L 'settings.show_key'
 $showSearchKey.Add_CheckedChanged({ $searchKey.UseSystemPasswordChar = -not $showSearchKey.Checked })
@@ -734,21 +753,47 @@ $apiPage.Controls.Add($replyLimit)
 
 $replyLimitHint = New-Object System.Windows.Forms.Label
 $replyLimitHint.Location = New-Object System.Drawing.Point(320, 447)
-$replyLimitHint.Size = New-Object System.Drawing.Size(280, 24)
+$replyLimitHint.Size = New-Object System.Drawing.Size(250, 24)
 $replyLimitHint.Text = L 'settings.reply_limit_hint'
 $apiPage.Controls.Add($replyLimitHint)
 
 $hint = New-Object System.Windows.Forms.Label
 $hint.Location = New-Object System.Drawing.Point(20, 476)
-$hint.Size = New-Object System.Drawing.Size(580, 28)
+$hint.Size = New-Object System.Drawing.Size(550, 28)
 $apiPage.Controls.Add($hint)
 
 $parentheticalActions = New-Object System.Windows.Forms.CheckBox
 $parentheticalActions.Location = New-Object System.Drawing.Point(20, 510)
-$parentheticalActions.Size = New-Object System.Drawing.Size(580, 38)
+$parentheticalActions.Size = New-Object System.Drawing.Size(550, 38)
 $parentheticalActions.Text = L 'settings.parenthetical'
 $parentheticalActions.Checked = [bool]$conversation.allow_parenthetical_actions
 $apiPage.Controls.Add($parentheticalActions)
+
+$proxyLabel = New-Object System.Windows.Forms.Label
+$proxyLabel.Location = New-Object System.Drawing.Point(20, 556)
+$proxyLabel.Size = New-Object System.Drawing.Size(550, 20)
+$proxyLabel.Text = L 'settings.proxy_url'
+$apiPage.Controls.Add($proxyLabel)
+
+$proxyUrl = New-Object System.Windows.Forms.TextBox
+$proxyUrl.Location = New-Object System.Drawing.Point(20, 578)
+$proxyUrl.Size = New-Object System.Drawing.Size(550, 24)
+$proxyUrl.Text = [string]$network.proxy_url
+$apiPage.Controls.Add($proxyUrl)
+
+$proxyHint = New-Object System.Windows.Forms.Label
+$proxyHint.Location = New-Object System.Drawing.Point(20, 607)
+$proxyHint.Size = New-Object System.Drawing.Size(550, 40)
+$proxyHint.Text = L 'settings.proxy_hint'
+$apiPage.Controls.Add($proxyHint)
+
+$geminiNotice = New-Object System.Windows.Forms.Label
+$geminiNotice.Location = New-Object System.Drawing.Point(20, 651)
+$geminiNotice.Size = New-Object System.Drawing.Size(550, 66)
+$geminiNotice.Text = L 'settings.gemini_notice'
+$geminiNotice.ForeColor = [Drawing.Color]::DarkRed
+$apiPage.Controls.Add($geminiNotice)
+$apiPage.AutoScrollMinSize = New-Object System.Drawing.Size(0, 730)
 
 $musicIntro = New-Object System.Windows.Forms.Label
 $languageLabel = New-Object System.Windows.Forms.Label
@@ -1363,7 +1408,7 @@ $applyMainLocalization = {
 
     $providerIndex = $providerPreset.SelectedIndex
     $providerPreset.Items.Clear()
-    foreach ($key in @('settings.custom','settings.volcengine','settings.deepseek','settings.kimi','settings.qwen','settings.glm')) {
+    foreach ($key in @('settings.custom','settings.volcengine','settings.deepseek','settings.kimi','settings.qwen','settings.glm','settings.gemini')) {
         [void]$providerPreset.Items.Add((L $key))
     }
     $providerPreset.SelectedIndex = $providerIndex
@@ -1394,6 +1439,9 @@ $applyMainLocalization = {
     $saveButton.Text = L 'common.save'
     $cancelButton.Text = L 'common.cancel'
     $testButton.Text = L 'settings.test'
+    $proxyLabel.Text = L 'settings.proxy_url'
+    $proxyHint.Text = L 'settings.proxy_hint'
+    $geminiNotice.Text = L 'settings.gemini_notice'
     Refresh-SearchControls
     } finally {
         $script:loadingProfile = $priorLoadingProfile
@@ -1439,6 +1487,32 @@ function ConvertTo-ReleaseVersion([string] $Value) {
     }
 }
 
+function Resolve-LilithProxy([Uri] $Target) {
+    if ($Target.IsLoopback) { return '' }
+    $candidate = $proxyUrl.Text.Trim()
+    if ([string]::IsNullOrWhiteSpace($candidate)) {
+        $candidate = [Environment]::GetEnvironmentVariable('HTTPS_PROXY', 'Process')
+        if ([string]::IsNullOrWhiteSpace($candidate)) {
+            $candidate = [Environment]::GetEnvironmentVariable('HTTP_PROXY', 'Process')
+        }
+    }
+    if ([string]::IsNullOrWhiteSpace($candidate)) { return '' }
+    $parsed = $null
+    if (-not [Uri]::TryCreate($candidate, [UriKind]::Absolute, [ref]$parsed) `
+        -or $parsed.Scheme -notin @('http', 'https') `
+        -or -not [string]::IsNullOrWhiteSpace($parsed.UserInfo)) {
+        throw (L 'settings.validation_proxy')
+    }
+    return $parsed.AbsoluteUri
+}
+
+function Add-LilithProxyArgument([hashtable] $Arguments, [Uri] $Target) {
+    $proxy = Resolve-LilithProxy $Target
+    if (-not [string]::IsNullOrWhiteSpace($proxy)) {
+        $Arguments.Proxy = $proxy
+    }
+}
+
 $checkUpdateButton.Add_Click({
     $repository = ([string]$releaseInfo.github_repository).Trim().Trim('/')
     if ($repository -notmatch '^[^/\s]+/[^/\s]+$') {
@@ -1462,11 +1536,15 @@ $checkUpdateButton.Add_Click({
             'User-Agent' = "LilithMod/$([string]$releaseInfo.version)"
             'X-GitHub-Api-Version' = '2022-11-28'
         }
-        $latest = Invoke-RestMethod `
-            -Uri "https://api.github.com/repos/$repository/releases/latest" `
-            -Method Get `
-            -Headers $headers `
-            -TimeoutSec 12
+        $updateUri = [Uri]"https://api.github.com/repos/$repository/releases/latest"
+        $updateArguments = @{
+            Uri = $updateUri
+            Method = 'Get'
+            Headers = $headers
+            TimeoutSec = 12
+        }
+        Add-LilithProxyArgument $updateArguments $updateUri
+        $latest = Invoke-RestMethod @updateArguments
         $latestTag = [string]$latest.tag_name
         $releaseUrl = [string]$latest.html_url
         $currentVersion = ConvertTo-ReleaseVersion ([string]$releaseInfo.version)
@@ -1544,6 +1622,10 @@ function Refresh-ReasoningChoices([string] $Preferred = '') {
             $selected = if ($Preferred) { $Preferred } else { [string]$provider.thinking_mode }
             Set-ReasoningChoices (L 'settings.reasoning_glm') @('disabled', 'enabled') $selected
         }
+        6 {
+            $selected = if ($Preferred) { $Preferred } else { [string]$provider.reasoning_effort }
+            Set-ReasoningChoices (L 'settings.reasoning_gemini') @('minimal', 'low', 'medium', 'high') $selected
+        }
         default {
             if ([string]$wireApi.SelectedItem -eq 'responses') {
                 $selected = if ($Preferred) { $Preferred } else { [string]$provider.reasoning_effort }
@@ -1561,7 +1643,9 @@ function Refresh-SearchControls {
     $searchKey.Enabled = $mode -eq 2
     $showSearchKey.Enabled = $searchKey.Enabled
     if ($mode -eq 1) {
-        if ([string]$wireApi.SelectedItem -eq 'responses') {
+        if ([string]$wireApi.SelectedItem -eq 'gemini_interactions') {
+            $hint.Text = L 'settings.search_hint_gemini'
+        } elseif ([string]$wireApi.SelectedItem -eq 'responses') {
             $hint.Text = L 'settings.search_hint_responses'
         } else {
             $hint.Text = switch ($providerPreset.SelectedIndex) {
@@ -1578,11 +1662,14 @@ function Refresh-SearchControls {
     } else {
         $hint.Text = L 'settings.search_hint_off'
     }
+    $geminiNotice.Visible = $providerPreset.SelectedIndex -eq 6
 }
 
 $searchBackend.Add_SelectedIndexChanged({ Refresh-SearchControls })
 
 $loadingProfile = $false
+$script:geminiSearchDefaultApplied = [bool]$geminiProfileWasStored
+$wireApi.Enabled = $providerKind -ne 'gemini'
 $wireApi.Add_SelectedIndexChanged({
     if ($loadingProfile) { return }
     Refresh-ReasoningChoices
@@ -1599,6 +1686,7 @@ function Get-SelectedProviderKind {
         3 { 'kimi' }
         4 { 'qwen' }
         5 { 'glm' }
+        6 { 'gemini' }
         default { 'custom' }
     }
 }
@@ -1610,6 +1698,7 @@ function Set-ProfileModelChoices([string] $Kind, [string] $Selected) {
         'kimi' { Set-ModelChoices @('kimi-k3', 'kimi-k2.6') $Selected }
         'qwen' { Set-ModelChoices @('qwen3.5-flash', 'qwen3.6-flash', 'qwen3.7-plus') $Selected }
         'glm' { Set-ModelChoices @('glm-4.7-flash', 'glm-4.7-flashx', 'glm-5.2') $Selected }
+        'gemini' { Set-ModelChoices @('gemini-3.6-flash', 'gemini-3.5-flash', 'gemini-3.5-flash-lite', 'gemini-2.5-pro', 'gemini-2.5-flash', 'gemini-2.5-flash-lite') $Selected }
         default { Set-ModelChoices @() $Selected }
     }
 }
@@ -1622,7 +1711,11 @@ function Capture-ProviderProfile {
     if (-not [string]::IsNullOrWhiteSpace($apiKey.Text)) {
         Set-JsonProperty $profile 'api_key' $apiKey.Text.Trim()
     }
-    if ($currentProviderKind -eq 'custom') {
+    if ($currentProviderKind -eq 'gemini') {
+        Set-JsonProperty $profile 'wire_api' 'gemini_interactions'
+        Set-JsonProperty $profile 'reasoning_effort' ([string]$reasoning.SelectedItem)
+        Set-JsonProperty $profile 'thinking_mode' 'default'
+    } elseif ($currentProviderKind -eq 'custom') {
         $effort = if ([string]$wireApi.SelectedItem -eq 'responses') { [string]$reasoning.SelectedItem } else { '' }
         Set-JsonProperty $profile 'reasoning_effort' $effort
         Set-JsonProperty $profile 'thinking_mode' 'default'
@@ -1641,8 +1734,10 @@ function Load-ProviderProfile([string] $Kind) {
     $showKey.Checked = $false
     Set-ProfileModelChoices $Kind ([string]$provider.model)
     $wire = [string]$provider.wire_api
-    if ($wire -notin @('chat_completions', 'responses')) { $wire = 'chat_completions' }
+    if ($wire -notin @('chat_completions', 'responses', 'gemini_interactions')) { $wire = 'chat_completions' }
+    if ($Kind -eq 'gemini') { $wire = 'gemini_interactions' }
     $wireApi.SelectedItem = $wire
+    $wireApi.Enabled = $Kind -ne 'gemini'
     $script:loadingProfile = $false
     Refresh-ReasoningChoices
     Refresh-SearchControls
@@ -1653,7 +1748,10 @@ $providerPreset.Add_SelectedIndexChanged({
     Capture-ProviderProfile
     $selectedKind = Get-SelectedProviderKind
     Load-ProviderProfile $selectedKind
-    if ($selectedKind -eq 'volcengine') {
+    if ($selectedKind -eq 'gemini' -and -not $script:geminiSearchDefaultApplied) {
+        $searchBackend.SelectedIndex = 1
+        $script:geminiSearchDefaultApplied = $true
+    } elseif ($selectedKind -eq 'volcengine') {
         $searchBackend.SelectedIndex = 1
     } elseif ($selectedKind -in @('deepseek', 'kimi', 'glm') `
         -and $searchBackend.SelectedIndex -eq 1) {
@@ -1721,10 +1819,23 @@ $testButton.Add_Click({
         if ([string]::IsNullOrWhiteSpace($modelName)) { throw (L 'settings.validation_model') }
         if ([string]::IsNullOrWhiteSpace($testKey)) { throw (L 'settings.validation_api_key') }
 
+        $isGemini = [string]$wireApi.SelectedItem -eq 'gemini_interactions'
         $isResponses = [string]$wireApi.SelectedItem -eq 'responses'
-        $testBuiltInSearch = $searchBackend.SelectedIndex -eq 1
-        $endpoint = $base + $(if ($isResponses) { '/responses' } else { '/chat/completions' })
-        $payload = if ($isResponses) {
+        # A connection test must not incur a Google Search grounding charge.
+        $testBuiltInSearch = $searchBackend.SelectedIndex -eq 1 -and -not $isGemini
+        $endpoint = $base + $(if ($isGemini) { '/interactions' } elseif ($isResponses) { '/responses' } else { '/chat/completions' })
+        $payload = if ($isGemini) {
+            @{
+                model = $modelName
+                store = $false
+                system_instruction = 'Return only OK.'
+                input = 'OK'
+                generation_config = @{
+                    thinking_level = [string]$reasoning.SelectedItem
+                    max_output_tokens = 32
+                }
+            }
+        } elseif ($isResponses) {
             @{
                 model = $modelName
                 input = $(if ($testBuiltInSearch) { '请使用联网搜索确认今天的日期，只回复 OK' } else { '只回复 OK' })
@@ -1764,16 +1875,24 @@ $testButton.Add_Click({
                 5 { $payload.thinking = @{ type = $thinkingMode } }
             }
         }
-        $headers = @{ Authorization = "Bearer $testKey" }
+        $headers = if ($isGemini) {
+            @{ 'x-goog-api-key' = $testKey }
+        } else {
+            @{ Authorization = "Bearer $testKey" }
+        }
         $body = $payload | ConvertTo-Json -Depth 6 -Compress
         $testTimeout = if ($testBuiltInSearch) { 45 } else { 20 }
-        $testResult = Invoke-RestMethod `
-            -Uri $endpoint `
-            -Method Post `
-            -Headers $headers `
-            -ContentType 'application/json; charset=utf-8' `
-            -Body ([Text.Encoding]::UTF8.GetBytes($body)) `
-            -TimeoutSec $testTimeout
+        $testUri = [Uri]$endpoint
+        $testArguments = @{
+            Uri = $testUri
+            Method = 'Post'
+            Headers = $headers
+            ContentType = 'application/json; charset=utf-8'
+            Body = [Text.Encoding]::UTF8.GetBytes($body)
+            TimeoutSec = $testTimeout
+        }
+        Add-LilithProxyArgument $testArguments $testUri
+        $testResult = Invoke-RestMethod @testArguments
         if ($testBuiltInSearch -and $isResponses) {
             $searchUsed = @($testResult.output | Where-Object { $_.type -eq 'web_search_call' }).Count -gt 0
             if (-not $searchUsed) {
@@ -1841,6 +1960,7 @@ $saveButton.Add_Click({
         }
         if ($searchBackendValue -eq 'provider') {
             $builtInAllowed = ($selectedKind -eq 'qwen') `
+                -or ($selectedKind -eq 'gemini' -and [string]$wireApi.SelectedItem -eq 'gemini_interactions') `
                 -or ($selectedKind -eq 'volcengine' -and [string]$wireApi.SelectedItem -eq 'responses') `
                 -or ($selectedKind -eq 'custom' -and [string]$wireApi.SelectedItem -eq 'responses')
             if (-not $builtInAllowed) {
@@ -1870,6 +1990,17 @@ $saveButton.Add_Click({
         Set-JsonProperty $conversation 'reply_max_chars' ([int]$replyLimit.Value)
         Set-JsonProperty $conversation 'allow_parenthetical_actions' ([bool]$parentheticalActions.Checked)
         }
+        $newProxyUrl = $proxyUrl.Text.Trim()
+        if (-not [string]::IsNullOrWhiteSpace($newProxyUrl)) {
+            $parsedProxyUri = $null
+            if (-not [Uri]::TryCreate($newProxyUrl, [UriKind]::Absolute, [ref]$parsedProxyUri) `
+                -or $parsedProxyUri.Scheme -notin @('http', 'https') `
+                -or -not [string]::IsNullOrWhiteSpace($parsedProxyUri.UserInfo)) {
+                throw (L 'settings.validation_proxy')
+            }
+            $newProxyUrl = $parsedProxyUri.AbsoluteUri.TrimEnd('/')
+        }
+        Set-JsonProperty $network 'proxy_url' $newProxyUrl
         $selectedLanguageMode = switch ($languageMode.SelectedIndex) {
             1 { 'zh-CN' }
             2 { 'zh-TW' }
@@ -1924,7 +2055,19 @@ $saveButton.Add_Click({
     }
 })
 
-if ($env:LILITH_CONFIGURE_STARTUP_SMOKE -ne '1') {
+if ($env:LILITH_CONFIGURE_STARTUP_SMOKE -eq '1') {
+    $form.ShowInTaskbar = $false
+    $form.Opacity = 0
+    $form.Show()
+    [System.Windows.Forms.Application]::DoEvents()
+    if ($apiPage.HorizontalScroll.Visible) {
+        throw 'AI API settings page unexpectedly requires horizontal scrolling.'
+    }
+    if (-not $apiPage.VerticalScroll.Visible) {
+        throw 'AI API settings page should retain vertical scrolling.'
+    }
+    $form.Hide()
+} else {
     [void]$form.ShowDialog()
 }
 if ($null -ne $rewardCode.Image) {

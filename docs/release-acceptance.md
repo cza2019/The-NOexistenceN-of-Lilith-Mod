@@ -52,6 +52,13 @@
 - [ ] API密钥只出现在 `%APPDATA%\LilithAI\config.json`。
 - [ ] 未开启搜索时不会声称已取得实时资料。
 - [ ] 开启可用搜索后，天气、电影或歌曲问题能够取得实时上下文。
+- [ ] Gemini 官方预设默认显示 `gemini-3.6-flash`、`gemini_interactions` 与 `low`，切换 Provider 后各自 API Key/模型仍能恢复。
+- [ ] Gemini 普通问题未调用 Google Search 时不打开独立窗口，也不产生来源按钮。
+- [ ] Gemini 实际搜索时，游戏聊天显示回复与可点击来源，独立窗口同时显示 grounded 原始输出、引用与 Search Suggestions，且每轮只启动/更新一次。
+- [ ] 关闭结果窗口后下一次实际搜索可以重新打开；同一轮页面刷新或重复访问显示已失效。
+- [ ] `%APPDATA%\LilithAI\sessions` 不含 thought、signature、`google_search_call` 或 Search Suggestions；重启后仍能基于可见历史继续对话。
+- [ ] 缺少 WebView2 Evergreen Runtime 的干净环境会使用默认浏览器打开完整结果页。
+- [ ] 显式 HTTP/HTTPS 代理、`HTTPS_PROXY/HTTP_PROXY` 与直连均可用，代理不影响 Companion loopback 通信；含认证或 SOCKS 地址会被拒绝。
 
 ## 音乐
 

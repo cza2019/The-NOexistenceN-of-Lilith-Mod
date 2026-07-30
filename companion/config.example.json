@@ -20,6 +20,9 @@
     "temperature": 0.75,
     "max_tokens": 500
   },
+  "network": {
+    "proxy_url": ""
+  },
   "media": {
     "enabled": true,
     "bridge_path": "",

@@ -10,6 +10,15 @@
 
 BepInEx、Node.js、メディアブリッジは同梱済みで、グローバルなインストールやNodeの固定作業は不要です。Mod設定にはWindows 10/11標準のWindows PowerShell 5.1を使います。
 
+## Gemini の設定
+
+1. Google AI Studio で自分の Gemini API Key を作成し、地域で Gemini API と Google Search grounding が利用可能か確認します。
+2. 「Mod設定 → AI API」で「Google Gemini 公式」を選びます。公式 Base URL、`gemini-3.6-flash`、Interactions API、`low` 思考レベルが自動設定されます。
+3. リアルタイム情報が必要なら「モデル内蔵検索」を選びます。検索オフ、Brave Search、SearXNG も選択でき、別ウィンドウと検索料金は Gemini が実際に検索した場合だけ発生します。
+4. Google へ直接接続できない場合は、認証情報を含まない HTTP/HTTPS プロキシを設定します。設定テストとゲーム内要求は同じプロキシを使います。
+
+結果ウィンドウは Windows 10/11 に通常含まれる WebView2 Evergreen Runtime を使用します。ない場合は同じ一回限りのページを既定ブラウザーで開きます。`store=false` は会話チェーンの保存のみを無効にし、無料枠のデータ利用と Search grounding 関連要求の 30 日保持には Google の規約が適用されます。
+
 ## 更新
 
 ゲームを完全に終了してから、新しいZIPで既存ファイルを上書きします。`%APPDATA%\LilithAI` にあるAPI設定、セッション、プレイヤー記憶は上書きされません。Mod言語を切り替えても履歴や長期記憶は翻訳されません。
@@ -24,3 +33,5 @@ BepInEx、Node.js、メディアブリッジは同梱済みで、グローバル
 - 設定が開かない：`BepInEx\plugins\companion\configure.ps1` と `BepInEx\plugins\locales` があるか確認します。
 - 文字が欠ける：ゲーム本体を対応言語に切り替えてください。ModはゲームのTMPフォントとfallbackを利用します。
 - ログ共有前に個人的な会話、プレイヤー名、ローカルパスを削除してください。
+- Gemini に接続できない場合は、地域、Key、Base URL、プロキシを確認してください。認証付き／SOCKS プロキシは使えません。
+- 別の検索ウィンドウは Google Search が実行された場合だけ開きます。WebView2、既定ブラウザー、セキュリティソフトを確認してください。

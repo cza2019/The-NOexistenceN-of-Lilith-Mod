@@ -1,8 +1,54 @@
 using System;
 using System.Collections.Generic;
+using System.Text.Json;
 using LilithMod;
 
 var model = new ChatViewModel();
+
+using (JsonDocument citationDocument = JsonDocument.Parse("""
+{
+  "citations": [
+    { "title": "One", "url": "https://example.test/one" },
+    { "title": "Duplicate", "url": "https://example.test/one" },
+    { "title": "Blocked", "url": "file:///C:/secret.txt" },
+    { "title": "Two", "url": "http://example.test/two" }
+  ]
+}
+"""))
+{
+    IReadOnlyList<ChatCitation> citations = CompanionCitationParser.Parse(citationDocument.RootElement);
+    if (citations.Count != 2
+        || citations[0].Title != "One"
+        || citations[1].Url != "http://example.test/two")
+    {
+        throw new InvalidOperationException("Companion citations were not parsed or filtered correctly.");
+    }
+    model.Add(ChatSpeaker.Lilith, "Grounded reply", citations);
+    if (model.Messages[^1].Citations?.Count != 2)
+    {
+        throw new InvalidOperationException("Current-run citations were not retained on the chat message.");
+    }
+    model.Clear();
+}
+
+var citationMergeModel = new ChatViewModel();
+var currentRunCitations = new List<ChatCitation>
+{
+    new("Current source", "https://example.test/current")
+};
+citationMergeModel.Add(ChatSpeaker.User, "Current question");
+citationMergeModel.Add(ChatSpeaker.Lilith, "Current answer", currentRunCitations);
+citationMergeModel.MergeHistory(new List<CompanionHistoryMessage>
+{
+    new("user", "Current question"),
+    new("assistant", "Current answer")
+});
+if (citationMergeModel.Messages.Count != 2
+    || citationMergeModel.Messages[^1].Citations?.Count != 1)
+{
+    throw new InvalidOperationException("History reconciliation duplicated or discarded current-run citations.");
+}
+
 model.ReplaceHistory(new List<CompanionHistoryMessage>
 {
     new("user", "你好"),

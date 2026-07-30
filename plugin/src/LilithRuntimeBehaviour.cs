@@ -281,16 +281,19 @@ public sealed class LilithRuntimeBehaviour : MonoBehaviour
     }
 
     [HideFromIl2Cpp]
-    private void AppendChatMessage(ChatSpeaker speaker, string text)
+    private void AppendChatMessage(
+        ChatSpeaker speaker,
+        string text,
+        IReadOnlyList<ChatCitation>? citations = null)
     {
-        ChatState.Model.Add(speaker, text);
-        var message = new ChatMessage(speaker, text.Trim());
+        ChatState.Model.Add(speaker, text, citations);
+        var message = new ChatMessage(speaker, text.Trim(), citations);
         if (ChatState.View is not null)
         {
             ChatState.View.AddMessage(message);
             return;
         }
-        _chatWindow.AppendMessage(SpeakerName(speaker), message.Text);
+        _chatWindow.AppendMessage(SpeakerName(speaker), message.Text, citations);
     }
 
     private void ClearChatMessages()
@@ -1045,7 +1048,8 @@ public sealed class LilithRuntimeBehaviour : MonoBehaviour
             message,
             ModLocalization.CurrentLocale,
             _lifetime.Token,
-            (text, emotion, durationMs, status) => _mainThread.Enqueue(() => ApplyReply(text, emotion, durationMs, status)),
+            (text, emotion, durationMs, status, citations) => _mainThread.Enqueue(() =>
+                ApplyReply(text, emotion, durationMs, status, citations)),
             error =>
             {
                 PluginLogWarning(error);
@@ -1086,9 +1090,14 @@ public sealed class LilithRuntimeBehaviour : MonoBehaviour
         }
     }
 
-    private void ApplyReply(string text, string emotion, int durationMs, string status)
+    private void ApplyReply(
+        string text,
+        string emotion,
+        int durationMs,
+        string status,
+        IReadOnlyList<ChatCitation> citations)
     {
-        AppendChatMessage(ChatSpeaker.Lilith, text);
+        AppendChatMessage(ChatSpeaker.Lilith, text, citations);
         string displayText = DialogueTextFormatter.WrapForLocale(text, ModLocalization.CurrentLocale);
         UserInterfacePatches.MarkCompanionDialogue(displayText, durationMs / 1000f);
         _status = status == "fallback"
