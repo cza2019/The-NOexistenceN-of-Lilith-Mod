@@ -1,5 +1,7 @@
 # 安装、升级与卸载
 
+[简体中文](installation.md) · [繁體中文](installation.zh-TW.md) · [English](installation.en.md) · [日本語](installation.ja.md)
+
 ## 系统要求
 
 - Steam版《不存在的莉莉丝》。
@@ -17,7 +19,7 @@
 4. 将 ZIP 内全部文件解压到该目录，而不是新建一层同名文件夹。
 5. 确认 `Lilith.exe`、`winhttp.dll` 和 `doorstop_config.ini` 位于同一目录。
 6. 从 Steam启动游戏。首次运行会使用包内附带的 Unity基础库在本地生成 BepInEx IL2CPP缓存，耗时可能较长，但不需要连接 `unity.bepinex.dev`。
-7. 打开“Mod设置”，配置模型服务并点击“测试连接”。
+7. 打开“Mod设置 → 其他”，选择跟随游戏或手动指定 Mod 语言；再按需配置模型服务并点击“测试连接”。
 
 ## 跨屏拖动优化（实验性）
 
@@ -38,6 +40,7 @@
 
 玩家配置、会话和长期记忆位于 `%APPDATA%\LilithAI`，正常覆盖升级不会删除这些数据。
 升级包不会替换游戏存档。
+切换 Mod 语言不会翻译或复制已经存在的会话和玩家长期记忆。
 
 ## 卸载
 

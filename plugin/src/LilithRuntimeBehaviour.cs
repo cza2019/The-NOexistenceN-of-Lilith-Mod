@@ -24,7 +24,7 @@ public sealed class LilithRuntimeBehaviour : MonoBehaviour
     private CancellationTokenSource _lifetime = new();
     private string _input = "";
     private string _lastReply = "";
-    private string _status = "等待输入";
+    private string _status = "";
     private bool _requestPending;
     private bool _memoryResetPending;
     private bool _visible;
@@ -315,9 +315,9 @@ public sealed class LilithRuntimeBehaviour : MonoBehaviour
     {
         return speaker switch
         {
-            ChatSpeaker.Lilith => "莉莉丝",
-            ChatSpeaker.User => "你",
-            _ => "系统"
+            ChatSpeaker.Lilith => ModLocalization.T("common.lilith"),
+            ChatSpeaker.User => ModLocalization.T("common.you"),
+            _ => ModLocalization.T("common.system")
         };
     }
 
@@ -345,13 +345,13 @@ public sealed class LilithRuntimeBehaviour : MonoBehaviour
             ChatState.View?.AddMessage(new ChatMessage(ChatSpeaker.Lilith, line));
             if (ChatState.View is null)
             {
-                _chatWindow.AppendMessage("莉莉丝", line);
+            _chatWindow.AppendMessage(ModLocalization.T("common.lilith"), line);
             }
         }
         ShowChat(ChatOpenReason.LilithBubble);
         ChatState.SeedQueue.Start();
-        _status = "莉莉丝先开口了";
-        SetChatBusy(true, "正在接上她的话");
+            _status = ModLocalization.T("chat.status.seeded");
+            SetChatBusy(true, ModLocalization.T("chat.status.seed_connecting"));
         CompanionTasks.SeedAssistant(
             _client,
             SessionId,
@@ -364,7 +364,7 @@ public sealed class LilithRuntimeBehaviour : MonoBehaviour
     private void CompleteConversationSeed(string? error)
     {
         string? pending = ChatState.SeedQueue.Complete();
-        SetChatBusy(_requestPending, _requestPending ? "正在想……" : string.Empty);
+        SetChatBusy(_requestPending, _requestPending ? ModLocalization.T("chat.status.thinking") : string.Empty);
         if (!string.IsNullOrWhiteSpace(error))
         {
             PluginLogWarning(error);
@@ -401,15 +401,15 @@ public sealed class LilithRuntimeBehaviour : MonoBehaviour
             () => _mainThread.Enqueue(() =>
             {
                 ClearChatMessages();
-                AppendChatMessage(ChatSpeaker.System, "当前会话已清空。角色设定和莉莉丝对你的长期记忆没有改变。");
-                _lastReply = "当前会话已清空。";
+                AppendChatMessage(ChatSpeaker.System, ModLocalization.T("chat.session_cleared"));
+                _lastReply = ModLocalization.T("chat.session_clear_short");
                 _replyUntil = Time.unscaledTime + 4f;
                 _memoryResetPending = false;
             }),
             error => _mainThread.Enqueue(() =>
             {
                 PluginLogWarning(error);
-                AppendChatMessage(ChatSpeaker.System, "暂时无法清空当前会话。");
+                AppendChatMessage(ChatSpeaker.System, ModLocalization.T("chat.session_clear_failed"));
                 _memoryResetPending = false;
             }));
     }
@@ -427,15 +427,15 @@ public sealed class LilithRuntimeBehaviour : MonoBehaviour
             _lifetime.Token,
             () => _mainThread.Enqueue(() =>
             {
-                AppendChatMessage(ChatSpeaker.System, "莉莉丝对你的长期记忆已清空。角色设定和当前会话没有改变。");
-                _lastReply = "对你的长期记忆已清空。";
+                AppendChatMessage(ChatSpeaker.System, ModLocalization.T("chat.memory_cleared"));
+                _lastReply = ModLocalization.T("chat.memory_clear_short");
                 _replyUntil = Time.unscaledTime + 4f;
                 _memoryResetPending = false;
             }),
             error => _mainThread.Enqueue(() =>
             {
                 PluginLogWarning(error);
-                AppendChatMessage(ChatSpeaker.System, "暂时无法清空对你的长期记忆。");
+                AppendChatMessage(ChatSpeaker.System, ModLocalization.T("chat.memory_clear_failed"));
                 _memoryResetPending = false;
             }));
     }
@@ -1026,7 +1026,7 @@ public sealed class LilithRuntimeBehaviour : MonoBehaviour
         }
         if (ChatState.SeedQueue.TryQueue(message))
         {
-            _status = "正在接上莉莉丝刚才的话";
+            _status = ModLocalization.T("chat.status.seed_thinking");
             return;
         }
         if (_requestPending)
@@ -1036,13 +1036,14 @@ public sealed class LilithRuntimeBehaviour : MonoBehaviour
 
         _input = "";
         _requestPending = true;
-        _status = "正在想……";
-        SetChatBusy(true, "正在想……");
+        _status = ModLocalization.T("chat.status.thinking");
+        SetChatBusy(true, ModLocalization.T("chat.status.thinking"));
         CompanionTasks.Send(
             _client,
             SessionId,
             PlayerName(),
             message,
+            ModLocalization.CurrentLocale,
             _lifetime.Token,
             (text, emotion, durationMs, status) => _mainThread.Enqueue(() => ApplyReply(text, emotion, durationMs, status)),
             error =>
@@ -1050,8 +1051,8 @@ public sealed class LilithRuntimeBehaviour : MonoBehaviour
                 PluginLogWarning(error);
                 _mainThread.Enqueue(() =>
                 {
-                    _status = "暂时没有连上对话服务";
-                    AppendChatMessage(ChatSpeaker.System, "暂时没有连上对话服务，请检查 API 配置。");
+                    _status = ModLocalization.T("chat.status.offline");
+                    AppendChatMessage(ChatSpeaker.System, ModLocalization.T("chat.service_failed"));
                     _requestPending = false;
                     SetChatBusy(false);
                 });
@@ -1088,9 +1089,11 @@ public sealed class LilithRuntimeBehaviour : MonoBehaviour
     private void ApplyReply(string text, string emotion, int durationMs, string status)
     {
         AppendChatMessage(ChatSpeaker.Lilith, text);
-        string displayText = DialogueTextFormatter.Wrap(text, 15);
+        string displayText = DialogueTextFormatter.WrapForLocale(text, ModLocalization.CurrentLocale);
         UserInterfacePatches.MarkCompanionDialogue(displayText, durationMs / 1000f);
-        _status = status == "fallback" ? "未配置 API（占位回复）" : "在听";
+        _status = status == "fallback"
+            ? ModLocalization.T("chat.status.unconfigured")
+            : ModLocalization.T("chat.status.listening");
         if (File.Exists(Path.Combine(Paths.PluginPath, "LilithMod.no-dialogue")))
         {
             LilithModPlugin.PluginLog.LogWarning("no-dialogue sentinel present; skipping ForceSay");
@@ -1205,7 +1208,7 @@ public sealed class LilithRuntimeBehaviour : MonoBehaviour
         {
             PluginLogWarning(error);
         }
-        return "你";
+        return ModLocalization.T("common.you");
     }
 
     private void EnsureStyles()

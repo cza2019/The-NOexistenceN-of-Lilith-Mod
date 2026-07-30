@@ -19,7 +19,10 @@ const config = {
     media_enabled: true
   },
   media: {
-    allowed_sources: ['qqmusic', 'cloudmusic', 'netease']
+    allowed_sources: [
+      'qqmusic', 'cloudmusic', 'netease', 'spotify', 'applemusic',
+      'amazonmobilellc.amazonmusic'
+    ]
   },
   web_search: {
     enabled: true,
@@ -88,6 +91,27 @@ assert.deepStrictEqual(mediaContext.media, {
 assert.strictEqual(mediaSearchRequested(mediaContext, config.web_search), true);
 assert.match(buildSearchQuery('你觉得这首歌怎么样？', [], mediaContext), /孤独の肖像/);
 assert.match(buildSearchQuery('你觉得这首歌怎么样？', [], mediaContext), /中岛美雪/);
+
+const spotifyContext = createLocalContextSnapshot(
+  'this song',
+  config,
+  { ...pausedTrack, source: 'SpotifyAB.SpotifyMusic_zpdnekdrzrea0!Spotify' },
+  fixedTime);
+assert.strictEqual(spotifyContext.media.available, true);
+
+const appleContext = createLocalContextSnapshot(
+  'this song',
+  config,
+  { ...pausedTrack, source: 'AppleInc.AppleMusicWin_nzyj5cx40ttqa!App' },
+  fixedTime);
+assert.strictEqual(appleContext.media.available, true);
+
+const amazonContext = createLocalContextSnapshot(
+  'this song',
+  config,
+  { ...pausedTrack, source: 'AmazonMobileLLC.AmazonMusic_kc6t79cpj4tp0!AmazonMobileLLC.AmazonMusic' },
+  fixedTime);
+assert.strictEqual(amazonContext.media.available, true);
 
 const recommendationContext = createLocalContextSnapshot(
   '再给我推荐一些符合我口味的歌曲吧。',

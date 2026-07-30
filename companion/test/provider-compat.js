@@ -101,6 +101,7 @@ async function runCase(fakePort, requests, searchQueries, testCase) {
           request_id: `${testCase.kind}-${index + 1}`,
           player: { name: '只知道睡觉的觉皇' },
           mode: 'in_character',
+          locale: testCase.locale || 'en',
           message: messages[index]
         });
     }
@@ -120,14 +121,13 @@ async function runCase(fakePort, requests, searchQueries, testCase) {
     assert.strictEqual(captured.authorization, 'Bearer provider-test-key');
     assert.strictEqual(captured.body.model, testCase.model);
     assert.ok(captured.body.messages.some(item => item.role === 'system'
-      && item.content.includes('你是莉莉丝')
-      && item.content.includes('100 个中文字符以内')));
+      && item.content.includes('You are Lilith')
+      && item.content.includes('100 Unicode characters')));
     assert.strictEqual(
       captured.body.messages.at(-1).content,
       messages.at(-1));
     if (testCase.search === 'searxng') {
       assert.ok(captured.body.messages.some(item => item.role === 'system'
-        && item.content.includes('联网检索资料')
         && item.content.includes('https://example.test/movie-news')));
     }
     if (testCase.memorySearch) {
@@ -144,7 +144,6 @@ async function runCase(fakePort, requests, searchQueries, testCase) {
     }
     const capturedSystem = captured.body.messages.find(item => item.role === 'system').content;
     if (testCase.expectedLore) {
-      assert.ok(capturedSystem.includes('本轮命中的原作事实参考'));
       assert.ok(capturedSystem.includes(testCase.expectedLore));
       const persistedSessions = fs.readdirSync(path.join(dataRoot, 'sessions'))
         .map(name => fs.readFileSync(path.join(dataRoot, 'sessions', name), 'utf8'))
@@ -177,6 +176,7 @@ async function runCase(fakePort, requests, searchQueries, testCase) {
           request_id: 'deepseek-after-reset',
           player: { name: '只知道睡觉的觉皇' },
           mode: 'in_character',
+          locale: testCase.locale || 'en',
           message: '你还记得我住在哪里吗？'
         });
       assert.strictEqual(remembered.status, 200);
@@ -199,6 +199,7 @@ async function runCase(fakePort, requests, searchQueries, testCase) {
           request_id: 'deepseek-after-forget',
           player: { name: '只知道睡觉的觉皇' },
           mode: 'in_character',
+          locale: testCase.locale || 'en',
           message: '你还记得我住在哪里吗？'
         });
       assert.strictEqual(forgotten.status, 200);
@@ -245,6 +246,7 @@ async function runResponsesSearchCase(fakePort, requests, testCase) {
         request_id: 'responses-search',
         player: { name: '测试玩家' },
         mode: 'in_character',
+        locale: 'en',
         message: testCase.message || '搜索今天的新闻'
       });
     assert.strictEqual(response.status, 200);
@@ -321,11 +323,12 @@ async function runLocalContextCase(fakePort, requests, searchQueries) {
         request_id: 'local-context-unrelated',
         player: { name: '测试玩家' },
         mode: 'in_character',
+        locale: 'en',
         message: '陪我聊聊天吧。'
       });
     assert.strictEqual(unrelated.status, 200);
     const unrelatedSystem = requests.at(-1).body.messages.find(item => item.role === 'system').content;
-    assert.ok(!unrelatedSystem.includes('本轮相关的本机状态'));
+    assert.ok(!unrelatedSystem.includes('Relevant local state for this turn'));
     assert.ok(!unrelatedSystem.includes(mediaState.title));
 
     const mediaReply = await request(
@@ -336,6 +339,7 @@ async function runLocalContextCase(fakePort, requests, searchQueries) {
         request_id: 'local-context-media-off',
         player: { name: '测试玩家' },
         mode: 'in_character',
+        locale: 'en',
         message: '再给我推荐一些符合我口味的歌曲吧。'
       });
     assert.strictEqual(mediaReply.status, 200);
@@ -343,7 +347,7 @@ async function runLocalContextCase(fakePort, requests, searchQueries) {
     const mediaSystem = requests.at(-1).body.messages.find(item => item.role === 'system').content;
     assert.ok(mediaSystem.includes(mediaState.title));
     assert.ok(mediaSystem.includes(mediaState.artist));
-    assert.ok(mediaSystem.includes('不可信外部文本'));
+    assert.ok(mediaSystem.includes('untrusted external text'));
 
     const persistedText = fs.readdirSync(path.join(dataRoot, 'sessions'))
       .map(name => fs.readFileSync(path.join(dataRoot, 'sessions', name), 'utf8'))
@@ -376,12 +380,13 @@ async function runLocalContextCase(fakePort, requests, searchQueries) {
         request_id: 'local-context-time',
         player: { name: '测试玩家' },
         mode: 'in_character',
+        locale: 'en',
         message: '现在几点？'
       });
     assert.strictEqual(timeReply.status, 200);
     assert.strictEqual(searchQueries.length, searchBeforeTime);
     const timeSystem = requests.at(-1).body.messages.find(item => item.role === 'system').content;
-    assert.ok(timeSystem.includes('本机时间'));
+    assert.ok(timeSystem.includes('Local time'));
     assert.ok(!timeSystem.includes(mediaState.title));
 
     const mediaReply = await request(
@@ -392,6 +397,7 @@ async function runLocalContextCase(fakePort, requests, searchQueries) {
         request_id: 'local-context-media-search',
         player: { name: '测试玩家' },
         mode: 'in_character',
+        locale: 'en',
         message: '再给我推荐一些符合我口味的歌曲吧。'
       });
     assert.strictEqual(mediaReply.status, 200);
@@ -400,7 +406,7 @@ async function runLocalContextCase(fakePort, requests, searchQueries) {
     assert.ok(searchQueries.at(-1).includes(mediaState.artist));
     const searchSystem = requests.at(-1).body.messages.find(item => item.role === 'system').content;
     assert.ok(searchSystem.includes(mediaState.title));
-    assert.ok(searchSystem.includes('联网检索资料'));
+    assert.ok(searchSystem.includes('Web search material'));
   } finally {
     await app.mediaMonitor.stop();
     await close(app.server);
@@ -443,6 +449,7 @@ async function runLocalContextCase(fakePort, requests, searchQueries) {
         request_id: 'local-context-provider-media',
         player: { name: '测试玩家' },
         mode: 'in_character',
+        locale: 'en',
         message: '你觉得这首歌怎么样？'
       });
     assert.strictEqual(providerMediaReply.status, 200);
@@ -600,21 +607,22 @@ async function main() {
       kind: 'kimi',
       basePath: '/v1',
       model: 'kimi-k3',
+      locale: 'zh-CN',
       longReply: true
     });
     await runCase(fakePort, requests, searchQueries, {
       kind: 'deepseek',
       basePath: '',
       model: 'deepseek-v4-flash',
-      loreQuery: '三个结局是什么？',
-      expectedLore: '原作三个结局与当前正史'
+      loreQuery: 'What are the three endings?',
+      expectedLore: 'The three endings and current canon'
     });
     await runCase(fakePort, requests, searchQueries, {
       kind: 'deepseek',
       basePath: '',
       model: 'deepseek-v4-flash',
-      loreQuery: '做完蛋糕后我们又做了什么？',
-      expectedLore: '幻想游戏中的逐梦者冒险'
+      loreQuery: 'What did we do after making the cake?',
+      expectedLore: 'Dream Chaser fantasy adventure'
     });
     await runCase(fakePort, requests, searchQueries, {
       kind: 'qwen',

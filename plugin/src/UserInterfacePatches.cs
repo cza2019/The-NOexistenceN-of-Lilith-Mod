@@ -461,8 +461,8 @@ internal static class UserInterfacePatches
             return;
         }
         var options = new Il2CppSystem.Collections.Generic.List<string>();
-        options.Add("和莉莉丝聊天");
-        options.Add("一起听歌吧");
+        options.Add(ModLocalization.T("menu.chat"));
+        options.Add(ModLocalization.T("menu.listen_music"));
         _chatSelection ??= (System.Action<int>)OnChatSelected;
         handler._playerLineController.ShowOptions(
             options.Cast<Il2CppSystem.Collections.Generic.IReadOnlyList<string>>(),
@@ -777,9 +777,8 @@ internal static class UserInterfacePatches
             _controller = __instance;
             _selection ??= (System.Action<int>)OnSelected;
             var options = new Il2CppSystem.Collections.Generic.List<string>();
-            options.Add("QQ 音乐");
-            options.Add("网易云音乐");
-            options.Add("本地音乐");
+            options.Add(ModLocalization.T("menu.preferred_music"));
+            options.Add(ModLocalization.T("menu.local_music"));
             __instance.ShowOptions(
                 options.Cast<Il2CppSystem.Collections.Generic.IReadOnlyList<string>>(),
                 _selection);
@@ -790,15 +789,10 @@ internal static class UserInterfacePatches
         {
             if (index == 0)
             {
-                TrayIntegration.OpenPlayer(ExternalMusicPlayer.QqMusic, "QQ 音乐");
+                TrayIntegration.OpenPreferredPlayer();
                 return;
             }
-            if (index == 1)
-            {
-                TrayIntegration.OpenPlayer(ExternalMusicPlayer.NeteaseCloudMusic, "网易云音乐");
-                return;
-            }
-            if (index != 2 || _controller is null)
+            if (index != 1 || _controller is null)
             {
                 return;
             }

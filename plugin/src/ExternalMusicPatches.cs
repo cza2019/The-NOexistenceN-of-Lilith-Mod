@@ -52,7 +52,11 @@ internal static class ExternalMusicState
             || value.Contains("qqmusic")
             || value.Contains("spotify")
             || value.Contains("music.ui")
-            || value.Contains("applemusic");
+            || value.Contains("applemusic")
+            || value.Contains("appleinc.applemusicwin")
+            || value.Contains("amazonmusic")
+            || value.Contains("amazon music")
+            || value.Contains("amazonmobilellc.amazonmusic");
     }
 }
 

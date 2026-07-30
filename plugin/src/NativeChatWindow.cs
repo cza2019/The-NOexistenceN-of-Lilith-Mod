@@ -254,7 +254,7 @@ internal sealed class NativeChatWindow : IDisposable
         _sendButton = CreateWindowEx(
             0,
             "BUTTON",
-            "发送",
+            ModLocalization.T("chat.send"),
             WsChild | WsVisible | WsTabStop,
             374,
             18,
@@ -267,7 +267,7 @@ internal sealed class NativeChatWindow : IDisposable
         _configButton = CreateWindowEx(
             0,
             "BUTTON",
-            "Mod 设置",
+            ModLocalization.T("menu.mod_settings"),
             WsChild | WsVisible | WsTabStop,
             464,
             18,
@@ -280,7 +280,7 @@ internal sealed class NativeChatWindow : IDisposable
         _resetMemoryButton = CreateWindowEx(
             0,
             "BUTTON",
-            "清除记忆",
+            ModLocalization.T("chat.forget_player"),
             WsChild | WsVisible | WsTabStop,
             464,
             56,
@@ -293,7 +293,7 @@ internal sealed class NativeChatWindow : IDisposable
         _toggleHistoryButton = CreateWindowEx(
             0,
             "BUTTON",
-            "显示对话",
+            ModLocalization.T("chat.show_history"),
             WsChild | WsVisible | WsTabStop,
             374,
             56,
@@ -393,7 +393,7 @@ internal sealed class NativeChatWindow : IDisposable
             if (text.Length > 0)
             {
                 SetWindowText(_edit, "");
-                AppendMessage("你", text);
+        AppendMessage(ModLocalization.T("common.you"), text);
                 _onSubmit(text);
             }
             return IntPtr.Zero;
@@ -454,8 +454,8 @@ internal sealed class NativeChatWindow : IDisposable
         }
         try
         {
-            AppendMenu(menu, MfString, ResetSessionMenuId, "清空当前会话");
-            AppendMenu(menu, MfString, ForgetPlayerMenuId, "清空对“你”的记忆");
+        AppendMenu(menu, MfString, ResetSessionMenuId, ModLocalization.T("chat.reset_session"));
+        AppendMenu(menu, MfString, ForgetPlayerMenuId, ModLocalization.T("chat.forget_player"));
             GetWindowRect(_resetMemoryButton, out NativeRect buttonRect);
             int choice = TrackPopupMenu(
                 menu,
@@ -473,8 +473,8 @@ internal sealed class NativeChatWindow : IDisposable
             {
                 int confirmed = MessageBox(
                     owner,
-                    "这会删除莉莉丝在本机保存的玩家爱好、年龄等长期记忆。\n\n角色设定和当前会话不会改变。确定继续吗？",
-                    "确认清空对“你”的记忆",
+                ModLocalization.T("chat.memory_warning"),
+                ModLocalization.T("chat.memory_warning_title"),
                     MbYesNo | MbIconWarning | MbDefButton2);
                 if (confirmed == IdYes)
                 {
@@ -498,7 +498,9 @@ internal sealed class NativeChatWindow : IDisposable
         MoveWindow(_configButton, 464, inputY, 98, 32, true);
         MoveWindow(_toggleHistoryButton, 374, inputY + 38, 82, 32, true);
         MoveWindow(_resetMemoryButton, 464, inputY + 38, 98, 32, true);
-        SetWindowText(_toggleHistoryButton, visible ? "隐藏对话" : "显示对话");
+        SetWindowText(_toggleHistoryButton, visible
+            ? ModLocalization.T("chat.hide_history_native")
+            : ModLocalization.T("chat.show_history"));
         SetWindowPos(
             _window,
             IntPtr.Zero,

@@ -24,7 +24,7 @@ internal static class SettingsLauncher
     {
         public bool Open(out string error)
         {
-            error = "当前平台还没有可用的 Mod 设置窗口。";
+            error = ModLocalization.T("settings.unavailable_platform");
             return false;
         }
     }
@@ -39,7 +39,7 @@ internal sealed class WindowsSettingsLauncher : ISettingsLauncher
         string script = Path.Combine(pluginRoot, "companion", "configure.ps1");
         if (!File.Exists(script))
         {
-            error = "找不到 API 配置脚本，请确认 companion 文件夹完整。\n" + script;
+            error = ModLocalization.T("settings.script_missing", script);
             return false;
         }
 
@@ -68,7 +68,7 @@ internal sealed class WindowsSettingsLauncher : ISettingsLauncher
         }
         catch (Exception exception)
         {
-            error = $"无法打开 Mod 设置窗口：{exception.GetType().Name}: {exception.Message}";
+            error = ModLocalization.T("settings.open_failed", exception.GetType().Name, exception.Message);
             return false;
         }
     }

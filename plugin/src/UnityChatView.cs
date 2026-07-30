@@ -58,7 +58,12 @@ internal sealed class UnityChatView : IChatView
     private TMP_InputField? _input;
     private RectTransform? _inputViewport;
     private Button? _sendButton;
+    private TextMeshProUGUI? _titleLabel;
     private TextMeshProUGUI? _historyButtonLabel;
+    private TextMeshProUGUI? _settingsButtonLabel;
+    private TextMeshProUGUI? _placeholderLabel;
+    private TextMeshProUGUI? _sendButtonLabel;
+    private TextMeshProUGUI? _resetLabel;
     private TextMeshProUGUI? _statusText;
     private GameObject? _memoryMenu;
     private TextMeshProUGUI? _forgetLabel;
@@ -84,6 +89,7 @@ internal sealed class UnityChatView : IChatView
     private float _nextPreferencesPoll;
     private DateTime _preferencesWriteTimeUtc;
     private int _restoreInputFocusFrame = -1;
+    private string _locale = "";
     private bool _disposed;
 
     public UnityChatView(
@@ -171,7 +177,9 @@ internal sealed class UnityChatView : IChatView
         }
         if (_statusText is not null)
         {
-            _statusText.text = busy ? (string.IsNullOrWhiteSpace(status) ? "连接中" : status) : string.Empty;
+            _statusText.text = busy
+                ? (string.IsNullOrWhiteSpace(status) ? ModLocalization.T("chat.status.connecting") : status)
+                : string.Empty;
             _statusText.color = busy ? RedHover : SoftWhite;
         }
     }
@@ -219,6 +227,7 @@ internal sealed class UnityChatView : IChatView
         {
             _nextPreferencesPoll = Time.unscaledTime + 1f;
             ReloadPreferencesIfChanged();
+            ApplyLocalization();
         }
 
         if (Input.GetMouseButtonDown(0)
@@ -281,7 +290,7 @@ internal sealed class UnityChatView : IChatView
 
     private void Build()
     {
-        _font = FindFont();
+        _font = FindFont(ModLocalization.CurrentLocale);
         _avatar = LoadAvatar();
         Sprite background = FindSprite("Settings_Bg_FixSize") ?? CreateCheckerBackground();
 
@@ -322,30 +331,32 @@ internal sealed class UnityChatView : IChatView
         RectTransform avatarRect = AddImage("Avatar", headerObject.transform, Color.white, _avatar);
         SetAnchored(avatarRect, 15f, -3f, 36f, 36f, false, true);
 
-        TextMeshProUGUI title = AddText("Title", headerObject.transform, "和莉莉丝聊天", 20f, White, FontStyles.Bold);
-        SetAnchored(title.rectTransform, 59f, -5f, 210f, 32f, false, true);
+        _titleLabel = AddText("Title", headerObject.transform, string.Empty, 20f, White, FontStyles.Bold);
+        SetAnchored(_titleLabel.rectTransform, 59f, -5f, 220f, 32f, false, true);
 
         _statusText = AddText("Status", headerObject.transform, string.Empty, 14f, SoftWhite);
         _statusText.alignment = TextAlignmentOptions.MidlineRight;
-        SetAnchored(_statusText.rectTransform, 284f, -7f, 116f, 28f, false, true);
+        SetAnchored(_statusText.rectTransform, 280f, -7f, 66f, 28f, false, true);
 
         Button historyButton = AddButton(
             "HistoryButton",
             headerObject.transform,
-            "记录",
-            388f,
+            string.Empty,
+            350f,
             -5f,
-            48f,
+            68f,
             32f,
             ToggleHistory);
         _historyButtonLabel = historyButton.GetComponentInChildren<TextMeshProUGUI>();
-        AddButton("SettingsButton", headerObject.transform, "设置", 440f, -5f, 48f, 32f, _onConfigure);
-        AddButton("MemoryButton", headerObject.transform, "⋯", 492f, -5f, 28f, 32f, ToggleMemoryMenu);
+        Button settingsButton = AddButton("SettingsButton", headerObject.transform, string.Empty, 422f, -5f, 68f, 32f, _onConfigure);
+        _settingsButtonLabel = settingsButton.GetComponentInChildren<TextMeshProUGUI>();
+        AddButton("MemoryButton", headerObject.transform, "⋯", 494f, -5f, 28f, 32f, ToggleMemoryMenu);
         AddButton("CloseButton", headerObject.transform, "×", 524f, -5f, 28f, 32f, Hide);
 
         BuildHistory(panelObject.transform);
         BuildComposer(panelObject.transform);
         BuildMemoryMenu(panelObject.transform);
+        ApplyLocalization(force: true);
         LoadPreferences();
         SetExpanded(false);
         _root.SetActive(false);
@@ -407,21 +418,22 @@ internal sealed class UnityChatView : IChatView
         inputText.alignment = TextAlignmentOptions.TopLeft;
         Stretch(inputText.rectTransform, 2f, 2f, 2f, 2f);
 
-        TextMeshProUGUI placeholder = AddText("Placeholder", viewportObject.transform, "想和她说什么？", 18f, new Color(0.55f, 0.55f, 0.53f, 1f));
-        placeholder.fontStyle = FontStyles.Italic;
-        Stretch(placeholder.rectTransform, 2f, 2f, 2f, 2f);
+        _placeholderLabel = AddText("Placeholder", viewportObject.transform, string.Empty, 18f, new Color(0.55f, 0.55f, 0.53f, 1f));
+        _placeholderLabel.fontStyle = FontStyles.Italic;
+        Stretch(_placeholderLabel.rectTransform, 2f, 2f, 2f, 2f);
 
         _input = composer.AddComponent<TMP_InputField>();
         _input.textViewport = viewport;
         _input.textComponent = inputText;
-        _input.placeholder = placeholder;
+        _input.placeholder = _placeholderLabel;
         _input.lineType = TMP_InputField.LineType.MultiLineSubmit;
         _input.characterLimit = 2000;
         _input.richText = false;
         _input.onSubmit.AddListener((UnityAction<string>)SubmitFromInput);
         _input.onSelect.AddListener((UnityAction<string>)InputSelected);
 
-        _sendButton = AddButton("SendButton", composer.transform, "发送", 453f, 9f, 73f, 52f, SubmitCurrentInput);
+        _sendButton = AddButton("SendButton", composer.transform, string.Empty, 453f, 9f, 73f, 52f, SubmitCurrentInput);
+        _sendButtonLabel = _sendButton.GetComponentInChildren<TextMeshProUGUI>();
     }
 
     private void BuildMemoryMenu(Transform parent)
@@ -437,12 +449,13 @@ internal sealed class UnityChatView : IChatView
         image.color = Black;
         AddHardBorder(_memoryMenu.transform, 1f);
 
-        AddButton("ResetSession", _memoryMenu.transform, "清空当前会话", 7f, 49f, 228f, 35f, () =>
+        Button reset = AddButton("ResetSession", _memoryMenu.transform, string.Empty, 7f, 49f, 228f, 35f, () =>
         {
             _memoryMenu?.SetActive(false);
             _onResetSession();
         }, false, false);
-        Button forget = AddButton("ForgetPlayer", _memoryMenu.transform, "清空对“你”的记忆", 7f, 8f, 228f, 35f, ConfirmForget, false, false);
+        _resetLabel = reset.GetComponentInChildren<TextMeshProUGUI>();
+        Button forget = AddButton("ForgetPlayer", _memoryMenu.transform, string.Empty, 7f, 8f, 228f, 35f, ConfirmForget, false, false);
         _forgetLabel = forget.GetComponentInChildren<TextMeshProUGUI>();
         _memoryMenu.SetActive(false);
     }
@@ -564,7 +577,7 @@ internal sealed class UnityChatView : IChatView
         _forgetArmed = false;
         if (_forgetLabel is not null)
         {
-            _forgetLabel.text = "清空对“你”的记忆";
+            _forgetLabel.text = ModLocalization.T("chat.forget_player");
         }
         _memoryMenu.SetActive(show);
     }
@@ -576,7 +589,7 @@ internal sealed class UnityChatView : IChatView
             _forgetArmed = true;
             if (_forgetLabel is not null)
             {
-                _forgetLabel.text = "再次点击确认清空";
+                _forgetLabel.text = ModLocalization.T("chat.forget_confirm");
                 _forgetLabel.color = RedHover;
             }
             return;
@@ -591,7 +604,9 @@ internal sealed class UnityChatView : IChatView
         _expanded = expanded;
         if (_historyButtonLabel is not null)
         {
-            _historyButtonLabel.text = expanded ? "收起" : "记录";
+            _historyButtonLabel.text = expanded
+                ? ModLocalization.T("chat.hide_history")
+                : ModLocalization.T("chat.history");
         }
         if (_panel is not null)
         {
@@ -663,7 +678,9 @@ internal sealed class UnityChatView : IChatView
             }
             else
             {
-                string name = message.Speaker == ChatSpeaker.User ? "你" : "系统";
+                string name = message.Speaker == ChatSpeaker.User
+                    ? ModLocalization.T("common.you")
+                    : ModLocalization.T("common.system");
                 row.Portrait.gameObject.SetActive(false);
                 row.Speaker.gameObject.SetActive(true);
                 row.Speaker.text = name;
@@ -804,18 +821,28 @@ internal sealed class UnityChatView : IChatView
         }
     }
 
-    private TMP_FontAsset? FindFont()
+    private TMP_FontAsset? FindFont(string locale)
     {
         try
         {
             DialogueBubbleUI? bubble = Object.FindObjectOfType<DialogueBubbleUI>(true);
-            if (bubble?._dialogueText?.font is not null)
+            TMP_FontAsset? gameFont = bubble?._dialogueText?.font;
+            char required = ModLocalization.NormalizeLocale(locale) switch
             {
-                return bubble._dialogueText.font;
+                "zh-CN" => '莉',
+                "zh-TW" => '體',
+                "ja" => 'リ',
+                _ => 'A'
+            };
+            if (gameFont is not null && gameFont.HasCharacter(required, true, false))
+            {
+                return gameFont;
             }
-            return Resources.FindObjectsOfTypeAll<TMP_FontAsset>()
-                .FirstOrDefault(item => item.name.Contains("UIFont", StringComparison.OrdinalIgnoreCase))
-                ?? Resources.FindObjectsOfTypeAll<TMP_FontAsset>().FirstOrDefault();
+            TMP_FontAsset[] fonts = Resources.FindObjectsOfTypeAll<TMP_FontAsset>();
+            return fonts.FirstOrDefault(item => item.HasCharacter(required, true, false))
+                ?? gameFont
+                ?? fonts.FirstOrDefault(item => item.name.Contains("UIFont", StringComparison.OrdinalIgnoreCase))
+                ?? fonts.FirstOrDefault();
         }
         catch
         {
@@ -965,6 +992,67 @@ internal sealed class UnityChatView : IChatView
         {
             // The next poll will retry after the settings process finishes writing.
         }
+    }
+
+    private void ApplyLocalization(bool force = false)
+    {
+        string locale = ModLocalization.CurrentLocale;
+        if (!force && string.Equals(locale, _locale, StringComparison.Ordinal))
+        {
+            return;
+        }
+        _locale = locale;
+        TMP_FontAsset? localizedFont = FindFont(locale);
+        if (localizedFont is not null && localizedFont != _font)
+        {
+            _font = localizedFont;
+            if (_root is not null)
+            {
+                foreach (TextMeshProUGUI label in _root.GetComponentsInChildren<TextMeshProUGUI>(true))
+                {
+                    label.font = localizedFont;
+                }
+            }
+        }
+        if (_titleLabel is not null)
+        {
+            _titleLabel.text = ModLocalization.T("chat.title");
+            _titleLabel.enableAutoSizing = locale == "en";
+            _titleLabel.fontSizeMin = 14f;
+            _titleLabel.fontSizeMax = 20f;
+        }
+        if (_settingsButtonLabel is not null)
+        {
+            _settingsButtonLabel.text = ModLocalization.T("chat.settings");
+            _settingsButtonLabel.enableAutoSizing = locale == "en";
+            _settingsButtonLabel.fontSizeMin = 12f;
+            _settingsButtonLabel.fontSizeMax = 16f;
+        }
+        if (_placeholderLabel is not null)
+        {
+            _placeholderLabel.text = ModLocalization.T("chat.placeholder");
+        }
+        if (_sendButtonLabel is not null)
+        {
+            _sendButtonLabel.text = ModLocalization.T("chat.send");
+        }
+        if (_resetLabel is not null)
+        {
+            _resetLabel.text = ModLocalization.T("chat.reset_session");
+        }
+        if (_forgetLabel is not null)
+        {
+            _forgetLabel.text = _forgetArmed
+                ? ModLocalization.T("chat.forget_confirm")
+                : ModLocalization.T("chat.forget_player");
+        }
+        if (_historyButtonLabel is not null)
+        {
+            _historyButtonLabel.text = _expanded
+                ? ModLocalization.T("chat.hide_history")
+                : ModLocalization.T("chat.history");
+        }
+        MarkHistoryDirty();
     }
 
     private void ApplyOpenPosition()

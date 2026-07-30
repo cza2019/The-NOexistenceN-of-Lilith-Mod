@@ -93,8 +93,8 @@ internal static class TrayIntegration
             _openConfiguration ??= (System.Action)OpenApiConfiguration;
 
             tray.AddSeparator();
-            tray.AddItem("和莉莉丝聊天", _showChat);
-            tray.AddItem("Mod 设置", _openConfiguration);
+        tray.AddItem(ModLocalization.T("menu.chat"), _showChat);
+        tray.AddItem(ModLocalization.T("menu.mod_settings"), _openConfiguration);
             TraySnapshot registered = InspectTray(tray);
             _observedTrayIdentity = registered.Identity;
             _registeredActionCount = registered.ActionCount;
@@ -146,36 +146,43 @@ internal static class TrayIntegration
         bool opened = MusicLauncher.Open(player);
         if (!opened)
         {
-            Notify($"没有找到{displayName}，请先安装或手动启动播放器。");
+        Notify(ModLocalization.T("menu.player_missing", displayName));
         }
     }
 
     public static void OpenPreferredPlayer()
     {
         ExternalMusicPlayer preferred = MusicLauncher.PreferredPlayer();
-        ExternalMusicPlayer fallback = preferred == ExternalMusicPlayer.QqMusic
-            ? ExternalMusicPlayer.NeteaseCloudMusic
-            : ExternalMusicPlayer.QqMusic;
         string preferredName = PlayerName(preferred);
-        string fallbackName = PlayerName(fallback);
 
         ExternalMusicState.SetArmed(true);
-        if (MusicLauncher.Open(preferred))
+        foreach (ExternalMusicPlayer player in MusicPlayerLocator.OpenOrder(preferred))
         {
+            if (!MusicLauncher.Open(player))
+            {
+                continue;
+            }
+            if (player != preferred)
+            {
+                LilithModPlugin.PluginLog.LogInfo(
+                    $"Preferred music player unavailable; opened {PlayerName(player)} instead of {preferredName}");
+            }
             return;
         }
-        if (MusicLauncher.Open(fallback))
-        {
-            LilithModPlugin.PluginLog.LogInfo(
-                $"Preferred music player unavailable; opened {fallbackName} instead of {preferredName}");
-            return;
-        }
-        Notify("没有找到 QQ 音乐或网易云音乐，请先安装一个音乐播放器。");
+        Notify(ModLocalization.T("menu.players_missing"));
     }
 
     private static string PlayerName(ExternalMusicPlayer player)
     {
-        return player == ExternalMusicPlayer.QqMusic ? "QQ 音乐" : "网易云音乐";
+        return player switch
+        {
+            ExternalMusicPlayer.QqMusic => ModLocalization.T("menu.qq_music"),
+            ExternalMusicPlayer.NeteaseCloudMusic => ModLocalization.T("menu.netease_music"),
+            ExternalMusicPlayer.Spotify => ModLocalization.T("menu.spotify"),
+            ExternalMusicPlayer.AppleMusic => ModLocalization.T("menu.apple_music"),
+            ExternalMusicPlayer.AmazonMusic => ModLocalization.T("menu.amazon_music"),
+            _ => ModLocalization.T("menu.qq_music")
+        };
     }
 
     public static void ShowChat()
@@ -209,7 +216,7 @@ internal static class TrayIntegration
         _runtime?.NotifyUser(message);
         try
         {
-            ShowSystemTray.instance?.tray?.ShowNotification("莉莉丝", message, 3500);
+            ShowSystemTray.instance?.tray?.ShowNotification(ModLocalization.T("common.lilith"), message, 3500);
         }
         catch
         {

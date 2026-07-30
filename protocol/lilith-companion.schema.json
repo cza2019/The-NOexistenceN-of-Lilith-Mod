@@ -24,6 +24,7 @@
         "request_id": {"type": "string", "maxLength": 80},
         "session_id": {"type": "string", "minLength": 1, "maxLength": 128},
         "message": {"type": "string", "minLength": 1, "maxLength": 2000},
+        "locale": {"enum": ["zh-CN", "zh-TW", "en", "ja"]},
         "mode": {"enum": ["in_character", "ooc"]},
         "player": {
           "type": "object",

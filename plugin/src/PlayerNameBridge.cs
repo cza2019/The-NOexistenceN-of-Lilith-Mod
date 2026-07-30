@@ -100,7 +100,7 @@ internal sealed class PlayerNameBridge : IDisposable
                 JsonOptions);
             if (request is null || string.IsNullOrWhiteSpace(request.RequestId))
             {
-                throw new InvalidDataException("改名请求格式无效。");
+                throw new InvalidDataException(ModLocalization.T("bridge.invalid_request"));
             }
 
             if (!string.Equals(request.SessionId, _sessionId, StringComparison.Ordinal))
@@ -108,7 +108,7 @@ internal sealed class PlayerNameBridge : IDisposable
                 WriteResult(PlayerNameResult.Failure(
                     request,
                     CurrentPlayerName(),
-                    "游戏会话已变化，请重新打开设置窗口。"));
+                    ModLocalization.T("bridge.stale_session")));
                 return;
             }
 
@@ -122,7 +122,7 @@ internal sealed class PlayerNameBridge : IDisposable
                 WriteResult(PlayerNameResult.Failure(
                     request,
                     CurrentPlayerName(),
-                    "改名请求已过期，请重试。"));
+                    ModLocalization.T("bridge.expired")));
                 return;
             }
 
@@ -132,7 +132,7 @@ internal sealed class PlayerNameBridge : IDisposable
                 WriteResult(PlayerNameResult.Failure(
                     request,
                     currentName,
-                    "游戏内称呼已发生变化，请重新打开记忆编辑器。"));
+                    ModLocalization.T("bridge.name_changed")));
                 return;
             }
 
@@ -142,7 +142,7 @@ internal sealed class PlayerNameBridge : IDisposable
                 WriteResult(PlayerNameResult.Failure(
                     request,
                     currentName,
-                    "玩家称呼为空或长度异常。"));
+                    ModLocalization.T("bridge.invalid_length")));
                 return;
             }
 
@@ -152,7 +152,7 @@ internal sealed class PlayerNameBridge : IDisposable
                 WriteResult(PlayerNameResult.Failure(
                     request,
                     currentName,
-                    "该称呼不符合游戏的名称规则。"));
+                    ModLocalization.T("bridge.invalid_name")));
                 return;
             }
 
@@ -172,7 +172,7 @@ internal sealed class PlayerNameBridge : IDisposable
                 WriteResult(PlayerNameResult.Failure(
                     request,
                     currentName,
-                    "不支持的改名操作。"));
+                    ModLocalization.T("bridge.unsupported")));
                 return;
             }
 
@@ -189,7 +189,7 @@ internal sealed class PlayerNameBridge : IDisposable
                 WriteResult(PlayerNameResult.Failure(
                     request,
                     appliedName,
-                    "游戏没有接受该称呼，存档未按预期更新。"));
+                    ModLocalization.T("bridge.save_rejected")));
                 return;
             }
 
@@ -213,7 +213,7 @@ internal sealed class PlayerNameBridge : IDisposable
                 WriteResult(PlayerNameResult.Failure(
                     request,
                     CurrentPlayerName(),
-                    "游戏无法处理该称呼：" + error.Message));
+                    ModLocalization.T("bridge.failed", error.Message)));
             }
         }
         finally
@@ -267,6 +267,7 @@ internal sealed class PlayerNameBridge : IDisposable
                 ProcessId = _processId,
                 Running = running,
                 PlayerName = playerName,
+                GameLanguage = ModLocalization.GameLocale,
                 UpdatedAt = DateTime.UtcNow.ToString("O")
             });
         }
@@ -326,6 +327,9 @@ internal sealed class PlayerNameBridge : IDisposable
 
         [JsonPropertyName("player_name")]
         public string PlayerName { get; set; } = "";
+
+        [JsonPropertyName("game_language")]
+        public string GameLanguage { get; set; } = ModLocalization.DefaultLocale;
 
         [JsonPropertyName("updated_at")]
         public string UpdatedAt { get; set; } = "";

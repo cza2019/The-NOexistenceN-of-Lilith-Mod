@@ -137,18 +137,22 @@ New-Item -ItemType Directory -Path $companionSourceOutput,$companionAssetsOutput
 foreach ($file in @('config.example.json', 'configure.ps1', 'release-info.json')) {
     Copy-Item -LiteralPath (Join-Path $repo "companion\$file") -Destination $companionOutput
 }
-foreach ($file in @('lore.js', 'server.js')) {
+foreach ($file in @('localization.js', 'lore.js', 'server.js')) {
     Copy-Item -LiteralPath (Join-Path $repo "companion\src\$file") -Destination $companionSourceOutput
 }
 Copy-Item -LiteralPath (Join-Path $repo 'companion\assets\wechat-reward-code.png') -Destination $companionAssetsOutput
 Copy-Item -LiteralPath $NodePath -Destination (Join-Path $companionOutput 'node.exe')
 Copy-Item -LiteralPath $nodeLicense -Destination (Join-Path $companionOutput 'node-LICENSE.txt')
 
+$localesOutput = Join-Path $pluginRoot 'locales'
+Copy-Item -LiteralPath (Join-Path $repo 'locales') -Destination $pluginRoot -Recurse
+
 $characterOutput = Join-Path $pluginRoot 'character'
 $loreOutput = Join-Path $characterOutput 'lore'
 New-Item -ItemType Directory -Path $loreOutput -Force | Out-Null
 Copy-Item -LiteralPath (Join-Path $repo 'character\lilith.json') -Destination $characterOutput
-Copy-Item -LiteralPath (Join-Path $repo 'character\lore\index.json') -Destination $loreOutput
+Copy-Item -LiteralPath (Join-Path $repo 'character\locales') -Destination $characterOutput -Recurse
+Copy-Item -Path (Join-Path $repo 'character\lore\index*.json') -Destination $loreOutput
 Copy-Item -LiteralPath (Join-Path $repo 'plugin\assets') -Destination $pluginRoot -Recurse
 
 $mediaOutput = Join-Path $repo 'media-bridge\bin\Release\net8.0-windows10.0.19041.0\win-x64\publish\LilithMediaBridge.exe'
@@ -157,13 +161,17 @@ $mediaDestination = Join-Path $pluginRoot 'media-bridge'
 New-Item -ItemType Directory -Path $mediaDestination -Force | Out-Null
 Copy-Item -LiteralPath $mediaOutput -Destination (Join-Path $mediaDestination 'LilithMediaBridge.exe')
 
-foreach ($file in @('README.md', 'LICENSE', 'ASSET-NOTICE.md', 'THIRD-PARTY-NOTICES.md', 'CHANGELOG.md')) {
+foreach ($file in @('README.md', 'README.zh-TW.md', 'README.en.md', 'README.ja.md', 'LICENSE', 'ASSET-NOTICE.md', 'THIRD-PARTY-NOTICES.md', 'CHANGELOG.md')) {
     Copy-Item -LiteralPath (Join-Path $repo $file) -Destination $OutputDirectory
 }
 Copy-Item -LiteralPath (Join-Path $repo 'docs\installation.md') -Destination (Join-Path $OutputDirectory 'INSTALL.md')
 $publicDocsOutput = Join-Path $OutputDirectory 'docs'
 New-Item -ItemType Directory -Path $publicDocsOutput -Force | Out-Null
 Copy-Item -LiteralPath (Join-Path $repo 'docs\installation.md') -Destination $publicDocsOutput
+foreach ($localizedInstallation in @('installation.zh-TW.md', 'installation.en.md', 'installation.ja.md')) {
+    Copy-Item -LiteralPath (Join-Path $repo "docs\$localizedInstallation") -Destination $publicDocsOutput
+}
+Copy-Item -LiteralPath (Join-Path $repo 'docs\release-notes-v0.3.0.md') -Destination $publicDocsOutput
 
 $releaseManifest = [ordered]@{
     schema_version = 1

@@ -2,6 +2,9 @@
   "listen_host": "127.0.0.1",
   "listen_port": 6186,
   "mock_mode": true,
+  "ui": {
+    "language_mode": "follow_game"
+  },
   "active_provider": "custom",
   "provider_profiles": {},
   "provider": {
@@ -26,7 +29,11 @@
       "qqmusic",
       "spotify",
       "music.ui",
-      "applemusic"
+      "applemusic",
+      "appleinc.applemusicwin",
+      "amazonmusic",
+      "amazon music",
+      "amazonmobilellc.amazonmusic"
     ]
   },
   "local_context": {

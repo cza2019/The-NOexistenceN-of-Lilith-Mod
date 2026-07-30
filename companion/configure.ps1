@@ -58,7 +58,7 @@ $releaseInfoPath = Join-Path $PSScriptRoot 'release-info.json'
 New-Item -ItemType Directory -Path $dataRoot -Force | Out-Null
 
 $releaseInfo = [pscustomobject]@{
-    version = '0.2.0'
+    version = '0.3.0'
     github_repository = ''
 }
 if (Test-Path -LiteralPath $releaseInfoPath) {
@@ -80,6 +80,11 @@ $config = if (Test-Path -LiteralPath $configPath) {
 } else {
     Get-Content -LiteralPath $examplePath -Raw -Encoding UTF8 | ConvertFrom-Json
 }
+$musicPlayerValues = @('qqmusic', 'netease', 'spotify', 'applemusic', 'amazonmusic')
+$defaultMusicSources = @(
+    'cloudmusic', 'netease', 'qqmusic', 'spotify', 'music.ui', 'applemusic',
+    'appleinc.applemusicwin', 'amazonmusic', 'amazon music', 'amazonmobilellc.amazonmusic'
+)
 $uiPreferences = if (Test-Path -LiteralPath $uiPath) {
     Get-Content -LiteralPath $uiPath -Raw -Encoding UTF8 | ConvertFrom-Json
 } else {
@@ -130,6 +135,11 @@ if ($null -eq $uiPreferences.PSObject.Properties['EnhancedCrossScreenDrag']) {
 if ($null -eq $config.provider) {
     Set-JsonProperty $config 'provider' ([pscustomobject]@{})
 }
+if ($null -eq $config.ui) {
+    Set-JsonProperty $config 'ui' ([pscustomobject]@{ language_mode = 'follow_game' })
+} elseif ($null -eq $config.ui.PSObject.Properties['language_mode']) {
+    Set-JsonProperty $config.ui 'language_mode' 'follow_game'
+}
 if ($null -eq $config.web_search) {
     Set-JsonProperty $config 'web_search' ([pscustomobject]@{})
 }
@@ -143,6 +153,28 @@ if ($null -eq $config.conversation) {
 }
 if ($null -eq $config.music) {
     Set-JsonProperty $config 'music' ([pscustomobject]@{ preferred_player = 'qqmusic' })
+} elseif ($null -eq $config.music.PSObject.Properties['preferred_player'] -or
+    [string]$config.music.preferred_player -notin $musicPlayerValues) {
+    Set-JsonProperty $config.music 'preferred_player' 'qqmusic'
+}
+if ($null -eq $config.media) {
+    Set-JsonProperty $config 'media' ([pscustomobject]@{
+        enabled = $true
+        bridge_path = ''
+        allowed_sources = $defaultMusicSources
+    })
+} else {
+    $configuredSources = @(
+        @($config.media.allowed_sources) |
+            ForEach-Object { [string]$_ } |
+            Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
+    )
+    foreach ($source in $defaultMusicSources) {
+        if ($configuredSources -notcontains $source) {
+            $configuredSources += $source
+        }
+    }
+    Set-JsonProperty $config.media 'allowed_sources' $configuredSources
 }
 if ($null -eq $config.local_context) {
     Set-JsonProperty $config 'local_context' ([pscustomobject]@{
@@ -183,9 +215,53 @@ $conversation = $config.conversation
 $music = $config.music
 $localContext = $config.local_context
 $memory = $config.memory
+$uiConfig = $config.ui
 $playersRoot = Join-Path $dataRoot 'players'
 $memoryMaxItems = [Math]::Max(1, [Math]::Min(50, [int]$memory.long_term_max_items))
 $memoryMaxChars = [Math]::Max(200, [Math]::Min(5000, [int]$memory.long_term_max_chars))
+
+$localeRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\locales'))
+$script:localeCatalogs = @{}
+function Normalize-LilithLocale([string] $Value, [string] $Fallback = 'zh-CN') {
+    $raw = ([string]$Value).Trim().Replace('_', '-').ToLowerInvariant()
+    if ($raw -in @('zh-tw', 'zh-hant', 'zh-hk', 'zh-mo', 'tw', 'tc') -or $raw -like '*traditional*') { return 'zh-TW' }
+    if ($raw -in @('zh-cn', 'zh-hans', 'zh-sg', 'cn', 'sc') -or $raw -like '*simplified*') { return 'zh-CN' }
+    if ($raw -eq 'ja' -or $raw -eq 'jp' -or $raw -like 'ja-*' -or $raw -like '*japanese*') { return 'ja' }
+    if ($raw -eq 'en' -or $raw -like 'en-*' -or $raw -like '*english*') { return 'en' }
+    return $Fallback
+}
+function Get-LocaleCatalog([string] $Locale) {
+    $normalized = Normalize-LilithLocale $Locale
+    if ($script:localeCatalogs.ContainsKey($normalized)) { return $script:localeCatalogs[$normalized] }
+    $catalog = @{}
+    try {
+        $json = Get-Content -LiteralPath (Join-Path $localeRoot ($normalized + '.json')) -Raw -Encoding UTF8 | ConvertFrom-Json
+        foreach ($property in $json.strings.PSObject.Properties) { $catalog[$property.Name] = [string]$property.Value }
+    } catch {}
+    $script:localeCatalogs[$normalized] = $catalog
+    return $catalog
+}
+function Resolve-LilithLocale {
+    $mode = ([string]$uiConfig.language_mode).Trim()
+    if ($mode -ne 'follow_game') { return Normalize-LilithLocale $mode }
+    try {
+        if (Test-Path -LiteralPath $gameStatePath) {
+            $state = Get-Content -LiteralPath $gameStatePath -Raw -Encoding UTF8 | ConvertFrom-Json
+            if (-not [string]::IsNullOrWhiteSpace([string]$state.game_language)) {
+                return Normalize-LilithLocale ([string]$state.game_language) (Normalize-LilithLocale ([Globalization.CultureInfo]::CurrentUICulture.Name))
+            }
+        }
+    } catch {}
+    return Normalize-LilithLocale ([Globalization.CultureInfo]::CurrentUICulture.Name)
+}
+$script:currentLocale = Resolve-LilithLocale
+function L([string] $Key, [object[]] $Arguments = @()) {
+    $catalog = Get-LocaleCatalog $script:currentLocale
+    $fallback = Get-LocaleCatalog 'zh-CN'
+    $value = if ($catalog.ContainsKey($Key)) { [string]$catalog[$Key] } elseif ($fallback.ContainsKey($Key)) { [string]$fallback[$Key] } else { $Key }
+    if ($Arguments.Count -gt 0) { try { return [string]::Format($value, $Arguments) } catch {} }
+    return $value
+}
 
 function Get-TextElementCount([string] $Value) {
     if ([string]::IsNullOrEmpty($Value)) { return 0 }
@@ -242,7 +318,7 @@ function Get-LilithGameState {
         player_name = $fallbackName
         session_id = ''
         process_id = 0
-        status = '未检测到正在运行的游戏；仍可编辑已读取的记忆，但不能修改游戏称呼。'
+        status = L 'settings.state_not_running'
     }
     if (-not (Test-Path -LiteralPath $gameStatePath)) { return $result }
 
@@ -272,10 +348,10 @@ function Get-LilithGameState {
             -and -not [string]::IsNullOrWhiteSpace($result.session_id) `
             -and -not [string]::IsNullOrWhiteSpace($result.player_name)
         if ($result.available) {
-            $result.status = '游戏运行中；保存后会同步修改游戏存档和莉莉丝使用的称呼。'
+            $result.status = L 'settings.state_running_hint'
         }
     } catch {
-        $result.status = '无法读取游戏状态；仍可编辑已读取的记忆，但不能修改游戏称呼。'
+        $result.status = L 'settings.state_unreadable'
     }
     return $result
 }
@@ -290,7 +366,7 @@ function Invoke-PlayerNameBridge {
 
     $freshState = Get-LilithGameState
     if (-not $freshState.available -or $freshState.session_id -ne $GameState.session_id) {
-        throw '游戏或 Mod 当前不可用，请保持游戏运行并重新打开记忆编辑器。'
+        throw (L 'settings.bridge_unavailable')
     }
 
     $requestId = [Guid]::NewGuid().ToString('N')
@@ -315,11 +391,11 @@ function Invoke-PlayerNameBridge {
                 $result = Get-Content -LiteralPath $playerNameResultPath -Raw -Encoding UTF8 | ConvertFrom-Json
                 if ([string]$result.request_id -ne $requestId) { continue }
                 if ([string]$result.session_id -ne [string]$freshState.session_id) {
-                    throw '游戏会话已变化，请重新打开记忆编辑器。'
+                    throw (L 'settings.bridge_session_changed')
                 }
                 if (-not [bool]$result.success) {
                     $message = [string]$result.error
-                    if ([string]::IsNullOrWhiteSpace($message)) { $message = '游戏拒绝修改玩家称呼。' }
+                    if ([string]::IsNullOrWhiteSpace($message)) { $message = L 'settings.bridge_rejected' }
                     throw $message
                 }
                 return $result
@@ -329,7 +405,7 @@ function Invoke-PlayerNameBridge {
                 # The plugin may be replacing the result file; retry until timeout.
             }
         }
-        throw '等待游戏确认称呼修改超时，请保持游戏运行后重试。'
+        throw (L 'settings.bridge_timeout')
     } finally {
         Remove-Item -LiteralPath $playerNameRequestPath -Force -ErrorAction SilentlyContinue
         Remove-Item -LiteralPath $playerNameResultPath -Force -ErrorAction SilentlyContinue
@@ -369,13 +445,13 @@ function Merge-PlayerMemoryFacts {
 }
 
 function Assert-PlayerMemoryLimits([object[]] $Facts) {
-    if (@($Facts).Count -gt $memoryMaxItems) { throw "长期记忆最多保存$memoryMaxItems 条。" }
+    if (@($Facts).Count -gt $memoryMaxItems) { throw (L 'settings.memory_limit_items' @($memoryMaxItems)) }
     $totalChars = 0
     foreach ($fact in @($Facts)) {
         $totalChars += Get-TextElementCount (([string]$fact.key) + ([string]$fact.value))
     }
     if ($totalChars -gt $memoryMaxChars) {
-        throw "长期记忆合计不能超过$memoryMaxChars 个字符；请精简后再修改称呼。"
+        throw (L 'settings.memory_limit_chars' @($memoryMaxChars))
     }
 }
 $existingBackend = [string]$webSearch.backend
@@ -456,7 +532,7 @@ $provider = $profiles[$providerKind]
 $currentProviderKind = $providerKind
 
 $form = New-Object System.Windows.Forms.Form
-$form.Text = '莉莉丝 Mod 设置'
+$form.Text = L 'settings.title'
 $form.StartPosition = 'CenterScreen'
 $form.FormBorderStyle = 'FixedDialog'
 $form.MaximizeBox = $false
@@ -468,13 +544,14 @@ $tabs = New-Object System.Windows.Forms.TabControl
 $tabs.Location = New-Object System.Drawing.Point(4, 4)
 $tabs.Size = New-Object System.Drawing.Size(612, 580)
 $apiPage = New-Object System.Windows.Forms.TabPage
-$apiPage.Text = 'AI API 设置'
+$apiPage.Text = L 'settings.tab_api'
 $musicPage = New-Object System.Windows.Forms.TabPage
-$musicPage.Text = '其他'
+$musicPage.Text = L 'settings.tab_other'
+$musicPage.AutoScroll = $true
 $localContextPage = New-Object System.Windows.Forms.TabPage
-$localContextPage.Text = '本机状态'
+$localContextPage.Text = L 'settings.tab_local'
 $updatePage = New-Object System.Windows.Forms.TabPage
-$updatePage.Text = '检查更新'
+$updatePage.Text = L 'settings.tab_update'
 [void]$tabs.TabPages.Add($apiPage)
 [void]$tabs.TabPages.Add($musicPage)
 [void]$tabs.TabPages.Add($localContextPage)
@@ -484,7 +561,7 @@ $form.Controls.Add($tabs)
 $intro = New-Object System.Windows.Forms.Label
 $intro.Location = New-Object System.Drawing.Point(20, 16)
 $intro.Size = New-Object System.Drawing.Size(580, 32)
-$intro.Text = '填写中转站或模型服务商提供的信息。API 密钥只保存在本机。'
+$intro.Text = L 'settings.api_intro'
 $apiPage.Controls.Add($intro)
 
 function Add-Label([string] $text, [int] $x, [int] $y, [int] $width = 260) {
@@ -495,17 +572,17 @@ function Add-Label([string] $text, [int] $x, [int] $y, [int] $width = 260) {
     $apiPage.Controls.Add($label)
 }
 
-Add-Label '服务商预设' 20 54
+Add-Label (L 'settings.provider') 20 54
 $providerPreset = New-Object LilithComboBox
 $providerPreset.Location = New-Object System.Drawing.Point(20, 75)
 $providerPreset.Size = New-Object System.Drawing.Size(580, 24)
 $providerPreset.DropDownStyle = 'DropDownList'
-[void]$providerPreset.Items.Add('自定义')
-[void]$providerPreset.Items.Add('火山方舟')
-[void]$providerPreset.Items.Add('DeepSeek 官方')
-[void]$providerPreset.Items.Add('Kimi 官方')
-[void]$providerPreset.Items.Add('Qwen 官方（阿里云百炼）')
-[void]$providerPreset.Items.Add('GLM 官方（智谱 AI）')
+[void]$providerPreset.Items.Add((L 'settings.custom'))
+[void]$providerPreset.Items.Add((L 'settings.volcengine'))
+[void]$providerPreset.Items.Add((L 'settings.deepseek'))
+[void]$providerPreset.Items.Add((L 'settings.kimi'))
+[void]$providerPreset.Items.Add((L 'settings.qwen'))
+[void]$providerPreset.Items.Add((L 'settings.glm'))
 $providerPreset.SelectedIndex = switch ($providerKind) {
     'volcengine' { 1 }
     'deepseek' { 2 }
@@ -523,7 +600,7 @@ $baseUrl.Size = New-Object System.Drawing.Size(580, 24)
 $baseUrl.Text = [string]$provider.base_url
 $apiPage.Controls.Add($baseUrl)
 
-Add-Label 'API 密钥（留空则保留已保存的密钥）' 20 164 340
+Add-Label (L 'settings.api_key') 20 164 380
 $apiKey = New-Object System.Windows.Forms.TextBox
 $apiKey.Location = New-Object System.Drawing.Point(20, 185)
 $apiKey.Size = New-Object System.Drawing.Size(465, 24)
@@ -533,11 +610,11 @@ $apiPage.Controls.Add($apiKey)
 $showKey = New-Object System.Windows.Forms.CheckBox
 $showKey.Location = New-Object System.Drawing.Point(494, 186)
 $showKey.Size = New-Object System.Drawing.Size(106, 24)
-$showKey.Text = '显示密钥'
+$showKey.Text = L 'settings.show_key'
 $showKey.Add_CheckedChanged({ $apiKey.UseSystemPasswordChar = -not $showKey.Checked })
 $apiPage.Controls.Add($showKey)
 
-Add-Label '模型名称' 20 219
+Add-Label (L 'settings.model') 20 219
 $model = New-Object LilithComboBox
 $model.Location = New-Object System.Drawing.Point(20, 240)
 $model.Size = New-Object System.Drawing.Size(580, 24)
@@ -574,7 +651,7 @@ switch ($providerKind) {
     }
 }
 
-Add-Label '接口类型' 20 274 260
+Add-Label (L 'settings.wire_api') 20 274 260
 $wireApi = New-Object LilithComboBox
 $wireApi.Location = New-Object System.Drawing.Point(20, 295)
 $wireApi.Size = New-Object System.Drawing.Size(270, 24)
@@ -596,36 +673,36 @@ $reasoning.Size = New-Object System.Drawing.Size(290, 24)
 $reasoning.DropDownStyle = 'DropDownList'
 $apiPage.Controls.Add($reasoning)
 
-Add-Label '联网搜索方式（不一定能正常使用）' 20 335 270
+Add-Label (L 'settings.web_search') 20 335 290
 $searchBackend = New-Object LilithComboBox
 $searchBackend.Location = New-Object System.Drawing.Point(20, 356)
 $searchBackend.Size = New-Object System.Drawing.Size(270, 24)
 $searchBackend.DropDownStyle = 'DropDownList'
-[void]$searchBackend.Items.Add('关闭')
-[void]$searchBackend.Items.Add('模型内置')
+[void]$searchBackend.Items.Add((L 'settings.search_off'))
+[void]$searchBackend.Items.Add((L 'settings.search_provider'))
 [void]$searchBackend.Items.Add('Brave Search')
 [void]$searchBackend.Items.Add('SearXNG')
-$selectedSearch = if (-not [bool]$webSearch.enabled) {
-    '关闭'
+$selectedSearchIndex = if (-not [bool]$webSearch.enabled) {
+    0
 } else {
     switch ($existingBackend) {
-        'provider' { '模型内置' }
-        'brave' { 'Brave Search' }
-        'searxng' { 'SearXNG' }
-        default { '关闭' }
+        'provider' { 1 }
+        'brave' { 2 }
+        'searxng' { 3 }
+        default { 0 }
     }
 }
-$searchBackend.SelectedItem = $selectedSearch
+$searchBackend.SelectedIndex = $selectedSearchIndex
 $apiPage.Controls.Add($searchBackend)
 
-Add-Label 'SearXNG 地址' 310 335 290
+Add-Label (L 'settings.searxng_url') 310 335 290
 $searchBase = New-Object System.Windows.Forms.TextBox
 $searchBase.Location = New-Object System.Drawing.Point(310, 356)
 $searchBase.Size = New-Object System.Drawing.Size(290, 24)
 $searchBase.Text = $existingSearchBase
 $apiPage.Controls.Add($searchBase)
 
-Add-Label 'Brave Search API Key（留空则保留）' 20 390 340
+Add-Label (L 'settings.search_key') 20 390 380
 $searchKey = New-Object System.Windows.Forms.TextBox
 $searchKey.Location = New-Object System.Drawing.Point(20, 411)
 $searchKey.Size = New-Object System.Drawing.Size(465, 24)
@@ -635,14 +712,14 @@ $apiPage.Controls.Add($searchKey)
 $showSearchKey = New-Object System.Windows.Forms.CheckBox
 $showSearchKey.Location = New-Object System.Drawing.Point(494, 412)
 $showSearchKey.Size = New-Object System.Drawing.Size(106, 24)
-$showSearchKey.Text = '显示密钥'
+$showSearchKey.Text = L 'settings.show_key'
 $showSearchKey.Add_CheckedChanged({ $searchKey.UseSystemPasswordChar = -not $showSearchKey.Checked })
 $apiPage.Controls.Add($showSearchKey)
 
 $replyLimitLabel = New-Object System.Windows.Forms.Label
 $replyLimitLabel.Location = New-Object System.Drawing.Point(20, 447)
 $replyLimitLabel.Size = New-Object System.Drawing.Size(190, 24)
-$replyLimitLabel.Text = '单次回复字数上限'
+$replyLimitLabel.Text = L 'settings.reply_limit'
 $apiPage.Controls.Add($replyLimitLabel)
 
 $replyLimit = New-Object System.Windows.Forms.NumericUpDown
@@ -658,7 +735,7 @@ $apiPage.Controls.Add($replyLimit)
 $replyLimitHint = New-Object System.Windows.Forms.Label
 $replyLimitHint.Location = New-Object System.Drawing.Point(320, 447)
 $replyLimitHint.Size = New-Object System.Drawing.Size(280, 24)
-$replyLimitHint.Text = '模型会在限制内组织完整回复。'
+$replyLimitHint.Text = L 'settings.reply_limit_hint'
 $apiPage.Controls.Add($replyLimitHint)
 
 $hint = New-Object System.Windows.Forms.Label
@@ -669,39 +746,71 @@ $apiPage.Controls.Add($hint)
 $parentheticalActions = New-Object System.Windows.Forms.CheckBox
 $parentheticalActions.Location = New-Object System.Drawing.Point(20, 510)
 $parentheticalActions.Size = New-Object System.Drawing.Size(580, 38)
-$parentheticalActions.Text = '用括号内容模拟角色表情/动作（Deepseek模型喜欢用括号返回角色表情或动作）'
+$parentheticalActions.Text = L 'settings.parenthetical'
 $parentheticalActions.Checked = [bool]$conversation.allow_parenthetical_actions
 $apiPage.Controls.Add($parentheticalActions)
 
 $musicIntro = New-Object System.Windows.Forms.Label
-$musicIntro.Location = New-Object System.Drawing.Point(20, 20)
+$languageLabel = New-Object System.Windows.Forms.Label
+$languageLabel.Location = New-Object System.Drawing.Point(20, 20)
+$languageLabel.Size = New-Object System.Drawing.Size(180, 20)
+$languageLabel.Text = L 'settings.language_label'
+$musicPage.Controls.Add($languageLabel)
+
+$languageMode = New-Object LilithComboBox
+$languageMode.Location = New-Object System.Drawing.Point(204, 17)
+$languageMode.Size = New-Object System.Drawing.Size(366, 24)
+$languageMode.DropDownStyle = 'DropDownList'
+[void]$languageMode.Items.Add((L 'language.follow_game'))
+[void]$languageMode.Items.Add((L 'language.zh_CN'))
+[void]$languageMode.Items.Add((L 'language.zh_TW'))
+[void]$languageMode.Items.Add((L 'language.en'))
+[void]$languageMode.Items.Add((L 'language.ja'))
+$languageMode.SelectedIndex = switch ([string]$uiConfig.language_mode) {
+    'zh-CN' { 1 }
+    'zh-TW' { 2 }
+    'en' { 3 }
+    'ja' { 4 }
+    default { 0 }
+}
+$musicPage.Controls.Add($languageMode)
+
+$languageHint = New-Object System.Windows.Forms.Label
+$languageHint.Location = New-Object System.Drawing.Point(20, 46)
+$languageHint.Size = New-Object System.Drawing.Size(550, 34)
+$languageHint.Text = L 'settings.language_hint'
+$musicPage.Controls.Add($languageHint)
+
+$musicIntro.Location = New-Object System.Drawing.Point(20, 88)
 $musicIntro.Size = New-Object System.Drawing.Size(550, 44)
-$musicIntro.Text = '设置“一起听歌吧”优先打开的音乐软件、聊天窗口大小和桌面交互。首选音乐软件不可用时会自动尝试另一个。'
+$musicIntro.Text = L 'settings.other_intro'
 $musicPage.Controls.Add($musicIntro)
 
 $musicPreferenceLabel = New-Object System.Windows.Forms.Label
-$musicPreferenceLabel.Location = New-Object System.Drawing.Point(20, 82)
+$musicPreferenceLabel.Location = New-Object System.Drawing.Point(20, 150)
 $musicPreferenceLabel.Size = New-Object System.Drawing.Size(300, 20)
-$musicPreferenceLabel.Text = '优先打开'
+$musicPreferenceLabel.Text = L 'settings.preferred_player'
 $musicPage.Controls.Add($musicPreferenceLabel)
 
 $musicPreference = New-Object LilithComboBox
-$musicPreference.Location = New-Object System.Drawing.Point(20, 106)
+$musicPreference.Location = New-Object System.Drawing.Point(20, 174)
 $musicPreference.Size = New-Object System.Drawing.Size(550, 24)
 $musicPreference.DropDownStyle = 'DropDownList'
-[void]$musicPreference.Items.Add('QQ 音乐')
-[void]$musicPreference.Items.Add('网易云音乐')
-$musicPreference.SelectedIndex = if ([string]$music.preferred_player -eq 'netease') { 1 } else { 0 }
+foreach ($key in @('menu.qq_music', 'menu.netease_music', 'menu.spotify', 'menu.apple_music', 'menu.amazon_music')) {
+    [void]$musicPreference.Items.Add((L $key))
+}
+$savedMusicPlayer = [string]$music.preferred_player
+$musicPreference.SelectedIndex = [Math]::Max(0, [Array]::IndexOf([string[]]$musicPlayerValues, $savedMusicPlayer))
 $musicPage.Controls.Add($musicPreference)
 
 $chatScaleLabel = New-Object System.Windows.Forms.Label
-$chatScaleLabel.Location = New-Object System.Drawing.Point(20, 158)
+$chatScaleLabel.Location = New-Object System.Drawing.Point(20, 226)
 $chatScaleLabel.Size = New-Object System.Drawing.Size(300, 20)
-$chatScaleLabel.Text = '聊天窗口缩放（50%–200%）'
+$chatScaleLabel.Text = L 'settings.chat_scale'
 $musicPage.Controls.Add($chatScaleLabel)
 
 $chatScale = New-Object System.Windows.Forms.NumericUpDown
-$chatScale.Location = New-Object System.Drawing.Point(20, 182)
+$chatScale.Location = New-Object System.Drawing.Point(20, 250)
 $chatScale.Size = New-Object System.Drawing.Size(120, 24)
 $chatScale.Minimum = 50
 $chatScale.Maximum = 200
@@ -715,27 +824,27 @@ $chatScale.Value = [Math]::Max(50, [Math]::Min(200, $savedUiScale))
 $musicPage.Controls.Add($chatScale)
 
 $chatScaleHint = New-Object System.Windows.Forms.Label
-$chatScaleHint.Location = New-Object System.Drawing.Point(154, 184)
+$chatScaleHint.Location = New-Object System.Drawing.Point(154, 252)
 $chatScaleHint.Size = New-Object System.Drawing.Size(416, 36)
-$chatScaleHint.Text = '聊天窗口会先按屏幕分辨率自动适配；此倍率在自动结果上额外叠加。'
+$chatScaleHint.Text = L 'settings.chat_scale_hint'
 $musicPage.Controls.Add($chatScaleHint)
 
 $enhancedCrossScreenDrag = New-Object System.Windows.Forms.CheckBox
-$enhancedCrossScreenDrag.Location = New-Object System.Drawing.Point(20, 220)
+$enhancedCrossScreenDrag.Location = New-Object System.Drawing.Point(20, 288)
 $enhancedCrossScreenDrag.Size = New-Object System.Drawing.Size(550, 24)
-$enhancedCrossScreenDrag.Text = '优化跨屏拖动（实验性）'
+$enhancedCrossScreenDrag.Text = L 'settings.cross_screen'
 $enhancedCrossScreenDrag.Checked = [bool]$uiPreferences.EnhancedCrossScreenDrag
 $musicPage.Controls.Add($enhancedCrossScreenDrag)
 
 $enhancedCrossScreenDragHint = New-Object System.Windows.Forms.Label
-$enhancedCrossScreenDragHint.Location = New-Object System.Drawing.Point(42, 244)
+$enhancedCrossScreenDragHint.Location = New-Object System.Drawing.Point(42, 312)
 $enhancedCrossScreenDragHint.Size = New-Object System.Drawing.Size(528, 28)
-$enhancedCrossScreenDragHint.Text = '请先在游戏设置→控制中开启“跨屏拖动”，否则无法拖到其他屏幕；本项只优化各屏触底高度。'
+$enhancedCrossScreenDragHint.Text = L 'settings.cross_screen_hint'
 $musicPage.Controls.Add($enhancedCrossScreenDragHint)
 
 function Show-PlayerMemoryEditor {
     $dialog = New-Object System.Windows.Forms.Form
-    $dialog.Text = '手动调整莉莉丝对玩家的记忆'
+    $dialog.Text = L 'settings.memory_edit'
     $dialog.StartPosition = 'CenterParent'
     $dialog.FormBorderStyle = 'FixedDialog'
     $dialog.MaximizeBox = $false
@@ -746,7 +855,7 @@ function Show-PlayerMemoryEditor {
     $playerLabel = New-Object System.Windows.Forms.Label
     $playerLabel.Location = New-Object System.Drawing.Point(16, 16)
     $playerLabel.Size = New-Object System.Drawing.Size(250, 20)
-    $playerLabel.Text = '游戏内玩家称呼'
+    $playerLabel.Text = L 'settings.player_name'
     $dialog.Controls.Add($playerLabel)
 
     $gameState = Get-LilithGameState
@@ -762,7 +871,7 @@ function Show-PlayerMemoryEditor {
     $gameStateLabel = New-Object System.Windows.Forms.Label
     $gameStateLabel.Location = New-Object System.Drawing.Point(470, 41)
     $gameStateLabel.Size = New-Object System.Drawing.Size(112, 20)
-    $gameStateLabel.Text = $(if ($gameState.available) { '游戏运行中' } else { '游戏未运行' })
+    $gameStateLabel.Text = $(if ($gameState.available) { L 'settings.game_running' } else { L 'settings.game_stopped' })
     $gameStateLabel.ForeColor = $(if ($gameState.available) { [Drawing.Color]::DarkGreen } else { [Drawing.Color]::DarkRed })
     $dialog.Controls.Add($gameStateLabel)
 
@@ -783,8 +892,8 @@ function Show-PlayerMemoryEditor {
     $memoryGrid.MultiSelect = $true
     $memoryGrid.AutoSizeRowsMode = [System.Windows.Forms.DataGridViewAutoSizeRowsMode]::AllCells
     $memoryGrid.DefaultCellStyle.WrapMode = [System.Windows.Forms.DataGridViewTriState]::True
-    [void]$memoryGrid.Columns.Add('MemoryKey', '项目')
-    [void]$memoryGrid.Columns.Add('MemoryValue', '内容')
+    [void]$memoryGrid.Columns.Add('MemoryKey', (L 'settings.memory_key'))
+    [void]$memoryGrid.Columns.Add('MemoryValue', (L 'settings.memory_value'))
     $memoryGrid.Columns[0].Width = 150
     $memoryGrid.Columns[1].AutoSizeMode = [System.Windows.Forms.DataGridViewAutoSizeColumnMode]::Fill
     $dialog.Controls.Add($memoryGrid)
@@ -797,19 +906,19 @@ function Show-PlayerMemoryEditor {
     $editorRules = New-Object System.Windows.Forms.Label
     $editorRules.Location = New-Object System.Drawing.Point(16, 402)
     $editorRules.Size = New-Object System.Drawing.Size(566, 92)
-    $editorRules.Text = "修改称呼会同时更新游戏存档，并自动迁移莉莉丝对你的长期记忆；整个过程不会调用 AI。`r`n每行是一条记忆：项目≤24字符，内容≤100字符；最多$memoryMaxItems 条，项目与内容合计≤$memoryMaxChars 字符。`r`n选中整行后按 Delete 可删除；保存后从下一轮对话开始生效。请勿填写密码、验证码、证件、银行卡或 API 密钥。"
+    $editorRules.Text = L 'settings.memory_editor_rules' @($memoryMaxItems, $memoryMaxChars)
     $dialog.Controls.Add($editorRules)
 
     $saveMemoryButton = New-Object System.Windows.Forms.Button
     $saveMemoryButton.Location = New-Object System.Drawing.Point(352, 504)
     $saveMemoryButton.Size = New-Object System.Drawing.Size(130, 30)
-    $saveMemoryButton.Text = '保存称呼与记忆'
+    $saveMemoryButton.Text = L 'settings.memory_save'
     $dialog.Controls.Add($saveMemoryButton)
 
     $cancelMemoryButton = New-Object System.Windows.Forms.Button
     $cancelMemoryButton.Location = New-Object System.Drawing.Point(490, 504)
     $cancelMemoryButton.Size = New-Object System.Drawing.Size(92, 30)
-    $cancelMemoryButton.Text = '取消'
+    $cancelMemoryButton.Text = L 'common.cancel'
     $cancelMemoryButton.DialogResult = [System.Windows.Forms.DialogResult]::Cancel
     $dialog.Controls.Add($cancelMemoryButton)
     $dialog.CancelButton = $cancelMemoryButton
@@ -825,7 +934,7 @@ function Show-PlayerMemoryEditor {
             $count++
             $chars += Get-TextElementCount ($key.Trim() + $value.Trim())
         }
-        $memoryStatus.Text = "当前：$count / $memoryMaxItems 条，$chars / $memoryMaxChars 字符"
+        $memoryStatus.Text = L 'settings.memory_count' @($count, $memoryMaxItems, $chars, $memoryMaxChars)
         $memoryStatus.ForeColor = if ($count -gt $memoryMaxItems -or $chars -gt $memoryMaxChars) {
             [Drawing.Color]::DarkRed
         } else {
@@ -850,8 +959,8 @@ function Show-PlayerMemoryEditor {
             } catch {
                 [void][System.Windows.Forms.MessageBox]::Show(
                     $dialog,
-                    "记忆文件无法读取：$($_.Exception.Message)",
-                    '读取记忆失败',
+                    (L 'settings.memory_file_failed' @($_.Exception.Message)),
+                    (L 'settings.memory_file_failed_title'),
                     [System.Windows.Forms.MessageBoxButtons]::OK,
                     [System.Windows.Forms.MessageBoxIcon]::Warning)
             }
@@ -885,9 +994,9 @@ function Show-PlayerMemoryEditor {
         $stagePath = ''
         try {
             $requestedName = $playerName.Text.Trim()
-            if ([string]::IsNullOrWhiteSpace($requestedName)) { throw '请填写玩家称呼。' }
+            if ([string]::IsNullOrWhiteSpace($requestedName)) { throw (L 'settings.memory_name_required') }
             if ([string]::IsNullOrWhiteSpace($originalPlayerName)) {
-                throw '无法确认当前游戏内称呼，请启动游戏并重新打开记忆编辑器。'
+                throw (L 'settings.memory_name_unknown')
             }
 
             $facts = [Collections.Generic.List[object]]::new()
@@ -898,13 +1007,13 @@ function Show-PlayerMemoryEditor {
                 $value = ([string]$row.Cells[1].Value).Trim()
                 if ([string]::IsNullOrWhiteSpace($key) -and [string]::IsNullOrWhiteSpace($value)) { continue }
                 if ([string]::IsNullOrWhiteSpace($key) -or [string]::IsNullOrWhiteSpace($value)) {
-                    throw '每条记忆都必须同时填写“项目”和“内容”。'
+                    throw (L 'settings.memory_fact_incomplete')
                 }
-                if ((Get-TextElementCount $key) -gt 24) { throw ('项目「{0}」超过24个字符。' -f $key) }
-                if ((Get-TextElementCount $value) -gt 100) { throw ('项目「{0}」的内容超过100个字符。' -f $key) }
-                if (-not $keys.Add($key)) { throw ('项目「{0}」重复；同类事实请保留一条并直接更新内容。' -f $key) }
-                if ("$key $value" -match '(?i)密码|口令|验证码|身份证|护照|银行卡|信用卡|支付密码|api\s*key|access\s*token|secret|password|passport|cvv') {
-                    throw ('项目「{0}」疑似包含敏感信息，不能写入长期记忆。' -f $key)
+                if ((Get-TextElementCount $key) -gt 24) { throw (L 'settings.memory_key_too_long' @($key)) }
+                if ((Get-TextElementCount $value) -gt 100) { throw (L 'settings.memory_value_too_long' @($key)) }
+                if (-not $keys.Add($key)) { throw (L 'settings.memory_duplicate' @($key)) }
+                if ("$key $value" -match '(?i)密码|密碼|口令|验证码|驗證碼|身份证|身份證|身分證|护照|護照|银行卡|銀行卡|信用卡|支付密码|支付密碼|パスワード|暗証番号|認証コード|確認コード|身分証|本人確認|旅券|クレジットカード|銀行口座|api\s*key|apiキー|access\s*token|secret|password|passport|cvv') {
+                    throw (L 'settings.memory_sensitive' @($key))
                 }
                 $facts.Add([pscustomobject]@{
                     key = $key
@@ -921,7 +1030,7 @@ function Show-PlayerMemoryEditor {
                 [StringComparison]::Ordinal)
             if ($nameChanged) {
                 if (-not [bool]$gameState.available) {
-                    throw '修改游戏内称呼时必须保持游戏和 Mod 正在运行。'
+                    throw (L 'settings.memory_game_required')
                 }
                 $validated = Invoke-PlayerNameBridge `
                     -Operation validate `
@@ -930,7 +1039,7 @@ function Show-PlayerMemoryEditor {
                     -RequestedName $requestedName
                 $canonicalName = ([string]$validated.applied_name).Trim()
                 if ([string]::IsNullOrWhiteSpace($canonicalName)) {
-                    throw '游戏没有返回有效的玩家称呼。'
+                    throw (L 'settings.memory_invalid_game_name')
                 }
                 $nameChanged = -not [string]::Equals(
                     $canonicalName,
@@ -970,7 +1079,7 @@ function Show-PlayerMemoryEditor {
                         ([string]$applied.applied_name).Trim(),
                         $canonicalName,
                         [StringComparison]::Ordinal)) {
-                    throw '游戏保存后的玩家称呼与预期不一致。'
+                    throw (L 'settings.memory_name_mismatch')
                 }
             }
 
@@ -1003,7 +1112,7 @@ function Show-PlayerMemoryEditor {
                             -ExpectedName $canonicalName `
                             -RequestedName $originalPlayerName)
                     } catch {
-                        throw "记忆文件提交失败，且游戏称呼自动回滚失败。旧记忆仍保留在原文件中；请重新打开设置检查。$([Environment]::NewLine)$($_.Exception.Message)"
+                        throw (L 'settings.memory_rollback_failed' @([Environment]::NewLine + $_.Exception.Message))
                     }
                 }
                 throw
@@ -1019,14 +1128,14 @@ function Show-PlayerMemoryEditor {
             }
 
             $resultMessage = if ($nameChanged) {
-                "游戏内称呼已修改为【${canonicalName}】，并迁移了$($mergedFacts.Count)条长期记忆。"
+                L 'settings.memory_saved_changed' @($canonicalName, $mergedFacts.Count)
             } else {
-                "已保存$($mergedFacts.Count)条长期记忆，将从下一轮对话开始生效。"
+                L 'settings.memory_saved' @($mergedFacts.Count)
             }
             [void][System.Windows.Forms.MessageBox]::Show(
                 $dialog,
                 $resultMessage,
-                '称呼与记忆已保存',
+                (L 'settings.memory_saved_title'),
                 [System.Windows.Forms.MessageBoxButtons]::OK,
                 [System.Windows.Forms.MessageBoxIcon]::Information)
             $dialog.DialogResult = [System.Windows.Forms.DialogResult]::OK
@@ -1035,7 +1144,7 @@ function Show-PlayerMemoryEditor {
             [void][System.Windows.Forms.MessageBox]::Show(
                 $dialog,
                 $_.Exception.Message,
-                '无法保存称呼与记忆',
+                (L 'settings.memory_save_failed_title'),
                 [System.Windows.Forms.MessageBoxButtons]::OK,
                 [System.Windows.Forms.MessageBoxIcon]::Warning)
         } finally {
@@ -1055,28 +1164,28 @@ function Show-PlayerMemoryEditor {
 }
 
 $memoryGroup = New-Object System.Windows.Forms.GroupBox
-$memoryGroup.Location = New-Object System.Drawing.Point(20, 276)
+$memoryGroup.Location = New-Object System.Drawing.Point(20, 344)
 $memoryGroup.Size = New-Object System.Drawing.Size(550, 258)
-$memoryGroup.Text = '莉莉丝对玩家的记忆'
+$memoryGroup.Text = L 'settings.memory_group'
 $musicPage.Controls.Add($memoryGroup)
 
 $memoryIntro = New-Object System.Windows.Forms.Label
 $memoryIntro.Location = New-Object System.Drawing.Point(16, 26)
 $memoryIntro.Size = New-Object System.Drawing.Size(516, 38)
-$memoryIntro.Text = '手动查看或调整本机保存的玩家长期记忆；不会修改角色设定和当前会话。'
+$memoryIntro.Text = L 'settings.memory_intro'
 $memoryGroup.Controls.Add($memoryIntro)
 
 $editMemoryButton = New-Object System.Windows.Forms.Button
 $editMemoryButton.Location = New-Object System.Drawing.Point(16, 66)
 $editMemoryButton.Size = New-Object System.Drawing.Size(220, 32)
-$editMemoryButton.Text = '手动调整莉莉丝对玩家的记忆'
+$editMemoryButton.Text = L 'settings.memory_edit'
 $editMemoryButton.Add_Click({ Show-PlayerMemoryEditor })
 $memoryGroup.Controls.Add($editMemoryButton)
 
 $openMemoryFolderButton = New-Object System.Windows.Forms.Button
 $openMemoryFolderButton.Location = New-Object System.Drawing.Point(248, 66)
 $openMemoryFolderButton.Size = New-Object System.Drawing.Size(284, 32)
-$openMemoryFolderButton.Text = '打开玩家记忆文件所在目录'
+$openMemoryFolderButton.Text = L 'settings.memory_folder'
 $openMemoryFolderButton.Add_Click({
     try {
         New-Item -ItemType Directory -Path $playersRoot -Force | Out-Null
@@ -1084,8 +1193,8 @@ $openMemoryFolderButton.Add_Click({
     } catch {
         [void][System.Windows.Forms.MessageBox]::Show(
             $form,
-            "无法打开玩家记忆目录：$($_.Exception.Message)",
-            '打开目录失败',
+            (L 'settings.memory_folder_failed' @($_.Exception.Message)),
+            (L 'settings.memory_folder_failed_title'),
             [System.Windows.Forms.MessageBoxButtons]::OK,
             [System.Windows.Forms.MessageBoxIcon]::Warning)
     }
@@ -1095,40 +1204,40 @@ $memoryGroup.Controls.Add($openMemoryFolderButton)
 $memoryRules = New-Object System.Windows.Forms.Label
 $memoryRules.Location = New-Object System.Drawing.Point(16, 110)
 $memoryRules.Size = New-Object System.Drawing.Size(516, 138)
-$memoryRules.Text = "手动调整方法与规范：`r`n· 游戏运行时可在编辑窗口顶部修改游戏内玩家称呼，原有长期记忆会自动迁移。`r`n· 每行填写一条记忆：「项目」是分类名称，「内容」是希望莉莉丝记住的信息。`r`n· 同类内容合并在同一项目；项目≤24字符，内容≤100字符。`r`n· 最多$memoryMaxItems 条，项目和内容合计≤$memoryMaxChars 字符。`r`n· 选中整行后按 Delete 可删除；保存后从下一轮对话生效。`r`n· 迁移设备时复制整个 players 目录；修改称呼和校验均在本地完成，不调用 AI。`r`n· 请勿填写密码、验证码、证件、银行卡或 API 密钥。"
+$memoryRules.Text = L 'settings.memory_rules_overview' @($memoryMaxItems, $memoryMaxChars)
 $memoryGroup.Controls.Add($memoryRules)
 
 $localContextIntro = New-Object System.Windows.Forms.Label
 $localContextIntro.Location = New-Object System.Drawing.Point(20, 20)
 $localContextIntro.Size = New-Object System.Drawing.Size(550, 52)
-$localContextIntro.Text = '仅当问题涉及时间、日期、歌曲或播放状态时，才向模型提供对应的只读本机状态。普通对话不会附加这些信息。'
+$localContextIntro.Text = L 'settings.local_intro'
 $localContextPage.Controls.Add($localContextIntro)
 
 $localContextEnabled = New-Object System.Windows.Forms.CheckBox
 $localContextEnabled.Location = New-Object System.Drawing.Point(20, 88)
 $localContextEnabled.Size = New-Object System.Drawing.Size(550, 24)
-$localContextEnabled.Text = '允许莉莉丝在相关问题中读取本机状态'
+$localContextEnabled.Text = L 'settings.local_enabled'
 $localContextEnabled.Checked = [bool]$localContext.enabled
 $localContextPage.Controls.Add($localContextEnabled)
 
 $localTimeEnabled = New-Object System.Windows.Forms.CheckBox
 $localTimeEnabled.Location = New-Object System.Drawing.Point(42, 126)
 $localTimeEnabled.Size = New-Object System.Drawing.Size(528, 24)
-$localTimeEnabled.Text = '本机时间、日期、星期和时区'
+$localTimeEnabled.Text = L 'settings.local_time'
 $localTimeEnabled.Checked = [bool]$localContext.time_enabled
 $localContextPage.Controls.Add($localTimeEnabled)
 
 $localMediaEnabled = New-Object System.Windows.Forms.CheckBox
 $localMediaEnabled.Location = New-Object System.Drawing.Point(42, 160)
 $localMediaEnabled.Size = New-Object System.Drawing.Size(528, 24)
-$localMediaEnabled.Text = '当前音乐的播放状态、曲名和歌手（仅音乐软件）'
+$localMediaEnabled.Text = L 'settings.local_media'
 $localMediaEnabled.Checked = [bool]$localContext.media_enabled
 $localContextPage.Controls.Add($localMediaEnabled)
 
 $localContextPrivacy = New-Object System.Windows.Forms.Label
 $localContextPrivacy.Location = New-Object System.Drawing.Point(20, 214)
 $localContextPrivacy.Size = New-Object System.Drawing.Size(550, 72)
-$localContextPrivacy.Text = '隐私提示：启用后，相关问题中的时间、曲名和歌手可能发送给你配置的模型或联网搜索服务商。原始状态不会作为独立记录写入历史、长期记忆或日志；模型回复中自然提到的内容会像普通对话一样保留。浏览器视频不会被读取。'
+$localContextPrivacy.Text = L 'settings.local_privacy'
 $localContextPage.Controls.Add($localContextPrivacy)
 
 $refreshLocalContextControls = {
@@ -1141,41 +1250,41 @@ $localContextEnabled.Add_CheckedChanged($refreshLocalContextControls)
 $updateGroup = New-Object System.Windows.Forms.GroupBox
 $updateGroup.Location = New-Object System.Drawing.Point(16, 14)
 $updateGroup.Size = New-Object System.Drawing.Size(570, 126)
-$updateGroup.Text = '检查更新'
+$updateGroup.Text = L 'settings.update_group'
 $updatePage.Controls.Add($updateGroup)
 
 $currentVersionLabel = New-Object System.Windows.Forms.Label
 $currentVersionLabel.Location = New-Object System.Drawing.Point(18, 28)
 $currentVersionLabel.Size = New-Object System.Drawing.Size(360, 24)
-$currentVersionLabel.Text = "当前版本：$([string]$releaseInfo.version)"
+$currentVersionLabel.Text = L 'settings.current_version' @([string]$releaseInfo.version)
 $updateGroup.Controls.Add($currentVersionLabel)
 
 $checkUpdateButton = New-Object System.Windows.Forms.Button
 $checkUpdateButton.Location = New-Object System.Drawing.Point(420, 24)
 $checkUpdateButton.Size = New-Object System.Drawing.Size(128, 32)
-$checkUpdateButton.Text = '检查更新'
+$checkUpdateButton.Text = L 'settings.update_group'
 $updateGroup.Controls.Add($checkUpdateButton)
 
 $updateStatusLabel = New-Object System.Windows.Forms.Label
 $updateStatusLabel.Location = New-Object System.Drawing.Point(18, 62)
 $updateStatusLabel.Size = New-Object System.Drawing.Size(530, 46)
 $updateStatusLabel.Text = if ([string]::IsNullOrWhiteSpace([string]$releaseInfo.github_repository)) {
-    'GitHub 仓库尚未配置。项目发布后即可按 Release 版本检查；当前不会下载或替换任何文件。'
+    L 'settings.update_not_configured'
 } else {
-    '从 GitHub Releases 查询最新正式版。当前只检查并打开下载页，不会自动替换文件。'
+    L 'settings.update_ready'
 }
 $updateGroup.Controls.Add($updateStatusLabel)
 
 $supportGroup = New-Object System.Windows.Forms.GroupBox
 $supportGroup.Location = New-Object System.Drawing.Point(16, 152)
 $supportGroup.Size = New-Object System.Drawing.Size(570, 382)
-$supportGroup.Text = '支持作者'
+$supportGroup.Text = L 'settings.support_group'
 $updatePage.Controls.Add($supportGroup)
 
 $supportIntro = New-Object System.Windows.Forms.Label
 $supportIntro.Location = New-Object System.Drawing.Point(18, 26)
 $supportIntro.Size = New-Object System.Drawing.Size(530, 38)
-$supportIntro.Text = 'Mod 免费提供。喜欢这个项目的话，可以自愿请作者喝杯咖啡；不赞赏不会影响任何功能。'
+$supportIntro.Text = L 'settings.support_intro'
 $supportGroup.Controls.Add($supportIntro)
 
 $rewardCode = New-Object System.Windows.Forms.PictureBox
@@ -1199,29 +1308,119 @@ $supportCaption = New-Object System.Windows.Forms.Label
 $supportCaption.Location = New-Object System.Drawing.Point(18, 340)
 $supportCaption.Size = New-Object System.Drawing.Size(530, 24)
 $supportCaption.TextAlign = [System.Drawing.ContentAlignment]::MiddleCenter
-$supportCaption.Text = '微信赞赏码 · Dreamer'
+$supportCaption.Text = L 'settings.support_caption'
 $supportGroup.Controls.Add($supportCaption)
 
 $saveButton = New-Object System.Windows.Forms.Button
 $saveButton.Location = New-Object System.Drawing.Point(414, 594)
 $saveButton.Size = New-Object System.Drawing.Size(88, 30)
-$saveButton.Text = '保存'
+$saveButton.Text = L 'common.save'
 $form.Controls.Add($saveButton)
 
 $testButton = New-Object System.Windows.Forms.Button
 $testButton.Location = New-Object System.Drawing.Point(316, 594)
 $testButton.Size = New-Object System.Drawing.Size(88, 30)
-$testButton.Text = '测试连接'
+$testButton.Text = L 'settings.test'
 $form.Controls.Add($testButton)
 
 $cancelButton = New-Object System.Windows.Forms.Button
 $cancelButton.Location = New-Object System.Drawing.Point(512, 594)
 $cancelButton.Size = New-Object System.Drawing.Size(88, 30)
-$cancelButton.Text = '取消'
+$cancelButton.Text = L 'common.cancel'
 $cancelButton.DialogResult = [System.Windows.Forms.DialogResult]::Cancel
 $form.Controls.Add($cancelButton)
 $form.CancelButton = $cancelButton
 $form.AcceptButton = $saveButton
+
+function Localize-ControlTree([System.Windows.Forms.Control] $Control) {
+    if (-not [string]::IsNullOrEmpty($Control.Text)) {
+        foreach ($locale in @('zh-CN', 'zh-TW', 'en', 'ja')) {
+            $catalog = Get-LocaleCatalog $locale
+            foreach ($entry in $catalog.GetEnumerator()) {
+                if ([string]::Equals([string]$entry.Value, $Control.Text, [StringComparison]::Ordinal)) {
+                    $Control.Text = L ([string]$entry.Key)
+                    break
+                }
+            }
+        }
+    }
+    foreach ($child in $Control.Controls) { Localize-ControlTree $child }
+}
+
+$script:applyingLocalization = $false
+$applyMainLocalization = {
+    if ($script:applyingLocalization) { return }
+    $script:applyingLocalization = $true
+    $priorLoadingProfile = [bool]$script:loadingProfile
+    $script:loadingProfile = $true
+    try {
+    $form.Text = L 'settings.title'
+    $apiPage.Text = L 'settings.tab_api'
+    $musicPage.Text = L 'settings.tab_other'
+    $localContextPage.Text = L 'settings.tab_local'
+    $updatePage.Text = L 'settings.tab_update'
+    Localize-ControlTree $form
+
+    $providerIndex = $providerPreset.SelectedIndex
+    $providerPreset.Items.Clear()
+    foreach ($key in @('settings.custom','settings.volcengine','settings.deepseek','settings.kimi','settings.qwen','settings.glm')) {
+        [void]$providerPreset.Items.Add((L $key))
+    }
+    $providerPreset.SelectedIndex = $providerIndex
+
+    $searchIndex = $searchBackend.SelectedIndex
+    $searchBackend.Items.Clear()
+    foreach ($value in @((L 'settings.search_off'),(L 'settings.search_provider'),'Brave Search','SearXNG')) {
+        [void]$searchBackend.Items.Add($value)
+    }
+    $searchBackend.SelectedIndex = $searchIndex
+
+    $musicIndex = $musicPreference.SelectedIndex
+    $musicPreference.Items.Clear()
+    foreach ($key in @('menu.qq_music', 'menu.netease_music', 'menu.spotify', 'menu.apple_music', 'menu.amazon_music')) {
+        [void]$musicPreference.Items.Add((L $key))
+    }
+    $musicPreference.SelectedIndex = [Math]::Max(0, [Math]::Min($musicIndex, $musicPlayerValues.Count - 1))
+
+    $languageIndex = $languageMode.SelectedIndex
+    $languageMode.Items.Clear()
+    foreach ($key in @('language.follow_game','language.zh_CN','language.zh_TW','language.en','language.ja')) {
+        [void]$languageMode.Items.Add((L $key))
+    }
+    $languageMode.SelectedIndex = $languageIndex
+    $languageLabel.Text = L 'settings.language_label'
+    $languageHint.Text = L 'settings.language_hint'
+    $currentVersionLabel.Text = L 'settings.current_version' @([string]$releaseInfo.version)
+    $saveButton.Text = L 'common.save'
+    $cancelButton.Text = L 'common.cancel'
+    $testButton.Text = L 'settings.test'
+    Refresh-SearchControls
+    } finally {
+        $script:loadingProfile = $priorLoadingProfile
+        $script:applyingLocalization = $false
+    }
+}.GetNewClosure()
+
+$script:changingLanguage = $false
+$languageMode.Add_SelectedIndexChanged({
+    if ($script:changingLanguage -or $script:applyingLocalization) { return }
+    $script:changingLanguage = $true
+    try {
+        $mode = switch ($languageMode.SelectedIndex) {
+            1 { 'zh-CN' }
+            2 { 'zh-TW' }
+            3 { 'en' }
+            4 { 'ja' }
+            default { 'follow_game' }
+        }
+        Set-JsonProperty $uiConfig 'language_mode' $mode
+        $script:currentLocale = Resolve-LilithLocale
+        & $applyMainLocalization
+    } finally {
+        $script:changingLanguage = $false
+    }
+}.GetNewClosure())
+
 $tabs.Add_SelectedIndexChanged({
     $testButton.Enabled = $tabs.SelectedIndex -eq 0
 })
@@ -1245,8 +1444,8 @@ $checkUpdateButton.Add_Click({
     if ($repository -notmatch '^[^/\s]+/[^/\s]+$') {
         [void][System.Windows.Forms.MessageBox]::Show(
             $form,
-            'GitHub 仓库尚未配置。等 Mod 发布后填写 owner/repository，即可启用版本检查。',
-            '检查更新',
+            (L 'settings.update_not_configured_dialog'),
+            (L 'settings.tab_update'),
             [System.Windows.Forms.MessageBoxButtons]::OK,
             [System.Windows.Forms.MessageBoxIcon]::Information)
         return
@@ -1254,7 +1453,7 @@ $checkUpdateButton.Add_Click({
 
     $form.UseWaitCursor = $true
     $checkUpdateButton.Enabled = $false
-    $updateStatusLabel.Text = '正在连接 GitHub Releases……'
+    $updateStatusLabel.Text = L 'settings.update_connecting'
     try {
         [Net.ServicePointManager]::SecurityProtocol = `
             [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
@@ -1273,23 +1472,23 @@ $checkUpdateButton.Add_Click({
         $currentVersion = ConvertTo-ReleaseVersion ([string]$releaseInfo.version)
         $latestVersion = ConvertTo-ReleaseVersion $latestTag
         if ($null -eq $latestVersion) {
-            throw "无法识别 GitHub Release 版本号：$latestTag"
+            throw (L 'settings.update_invalid_tag' @($latestTag))
         }
 
         if ($null -ne $currentVersion -and $latestVersion -le $currentVersion) {
-            $updateStatusLabel.Text = "已经是最新版本（GitHub：$latestTag）。"
+            $updateStatusLabel.Text = L 'settings.update_latest_status' @($latestTag)
             [void][System.Windows.Forms.MessageBox]::Show(
                 $form,
-                "当前已是最新版本：$latestTag",
-                '检查更新',
+                (L 'settings.update_latest' @($latestTag)),
+                (L 'settings.tab_update'),
                 [System.Windows.Forms.MessageBoxButtons]::OK,
                 [System.Windows.Forms.MessageBoxIcon]::Information)
         } else {
-            $updateStatusLabel.Text = "发现新版本：$latestTag"
+            $updateStatusLabel.Text = L 'settings.update_new_status' @($latestTag)
             $choice = [System.Windows.Forms.MessageBox]::Show(
                 $form,
-                "发现新版本 $latestTag。是否打开 GitHub 下载页面？`r`n`r`n当前版本不会自动替换本地文件。",
-                '发现新版本',
+                (L 'settings.update_new_prompt' @($latestTag)),
+                (L 'settings.update_new_title'),
                 [System.Windows.Forms.MessageBoxButtons]::YesNo,
                 [System.Windows.Forms.MessageBoxIcon]::Information)
             if ($choice -eq [System.Windows.Forms.DialogResult]::Yes `
@@ -1298,11 +1497,11 @@ $checkUpdateButton.Add_Click({
             }
         }
     } catch {
-        $updateStatusLabel.Text = '暂时无法连接 GitHub；可以稍后重试。'
+        $updateStatusLabel.Text = L 'settings.update_unavailable'
         [void][System.Windows.Forms.MessageBox]::Show(
             $form,
-            "检查失败：$($_.Exception.Message)`r`n`r`n这不会影响 Mod 的其他功能。",
-            '检查更新',
+            (L 'settings.update_failed' @($_.Exception.Message)),
+            (L 'settings.tab_update'),
             [System.Windows.Forms.MessageBoxButtons]::OK,
             [System.Windows.Forms.MessageBoxIcon]::Warning)
     } finally {
@@ -1327,57 +1526,57 @@ function Refresh-ReasoningChoices([string] $Preferred = '') {
     switch ($providerPreset.SelectedIndex) {
         1 {
             $selected = if ($Preferred) { $Preferred } else { [string]$provider.thinking_mode }
-            Set-ReasoningChoices '思考模式（火山方舟）' @('disabled', 'enabled') $selected
+            Set-ReasoningChoices (L 'settings.reasoning_volcengine') @('disabled', 'enabled') $selected
         }
         2 {
             $selected = if ($Preferred) { $Preferred } else { [string]$provider.thinking_mode }
-            Set-ReasoningChoices '思考模式（DeepSeek）' @('disabled', 'high', 'max') $selected
+            Set-ReasoningChoices (L 'settings.reasoning_deepseek') @('disabled', 'high', 'max') $selected
         }
         3 {
             $selected = if ($Preferred) { $Preferred } else { [string]$provider.thinking_mode }
-            Set-ReasoningChoices '思考模式（Kimi）' @('disabled', 'enabled') $selected
+            Set-ReasoningChoices (L 'settings.reasoning_kimi') @('disabled', 'enabled') $selected
         }
         4 {
             $selected = if ($Preferred) { $Preferred } else { [string]$provider.thinking_mode }
-            Set-ReasoningChoices '思考模式（Qwen）' @('disabled', 'enabled') $selected
+            Set-ReasoningChoices (L 'settings.reasoning_qwen') @('disabled', 'enabled') $selected
         }
         5 {
             $selected = if ($Preferred) { $Preferred } else { [string]$provider.thinking_mode }
-            Set-ReasoningChoices '思考模式（GLM）' @('disabled', 'enabled') $selected
+            Set-ReasoningChoices (L 'settings.reasoning_glm') @('disabled', 'enabled') $selected
         }
         default {
             if ([string]$wireApi.SelectedItem -eq 'responses') {
                 $selected = if ($Preferred) { $Preferred } else { [string]$provider.reasoning_effort }
-                Set-ReasoningChoices '推理强度（Responses，可选）' @('', 'low', 'medium', 'high', 'xhigh') $selected
+                Set-ReasoningChoices (L 'settings.reasoning_responses') @('', 'low', 'medium', 'high', 'xhigh') $selected
             } else {
-                Set-ReasoningChoices '推理设置（由服务商决定）' @('default') 'default' $false
+                Set-ReasoningChoices (L 'settings.reasoning_provider') @('default') 'default' $false
             }
         }
     }
 }
 
 function Refresh-SearchControls {
-    $mode = [string]$searchBackend.SelectedItem
-    $searchBase.Enabled = $mode -eq 'SearXNG'
-    $searchKey.Enabled = $mode -eq 'Brave Search'
+    $mode = $searchBackend.SelectedIndex
+    $searchBase.Enabled = $mode -eq 3
+    $searchKey.Enabled = $mode -eq 2
     $showSearchKey.Enabled = $searchKey.Enabled
-    if ($mode -eq '模型内置') {
+    if ($mode -eq 1) {
         if ([string]$wireApi.SelectedItem -eq 'responses') {
-            $hint.Text = 'Responses 模型内置搜索已启用；模型会根据当前对话自行决定是否联网。'
+            $hint.Text = L 'settings.search_hint_responses'
         } else {
             $hint.Text = switch ($providerPreset.SelectedIndex) {
-                4 { 'Qwen 将使用 Chat Completions 的内置联网搜索；仅在本地规则命中实时、检索或媒体推荐话题时调用。' }
-                2 { 'DeepSeek 直连不使用模型内置搜索，请改选 Brave Search 或 SearXNG。' }
-                3 { 'Kimi 的内置搜索接口仍在调整，当前建议改选 Brave Search 或 SearXNG。' }
-                default { 'Chat Completions 的联网搜索仅在本地规则命中时触发；当前服务商预设可能不支持模型内置搜索。' }
+                4 { L 'settings.search_hint_qwen' }
+                2 { L 'settings.search_hint_deepseek' }
+                3 { L 'settings.search_hint_kimi' }
+                default { L 'settings.search_hint_chat' }
             }
         }
-    } elseif ($mode -eq 'Brave Search') {
-        $hint.Text = 'Brave Search 仅在本地规则命中实时、检索或媒体推荐话题时调用；模型 API Key 不会用于搜索。'
-    } elseif ($mode -eq 'SearXNG') {
-        $hint.Text = 'SearXNG 仅在本地规则命中实时、检索或媒体推荐话题时调用；搜索请求只发送当前问题，不上传本地聊天记录。'
+    } elseif ($mode -eq 2) {
+        $hint.Text = L 'settings.search_hint_brave'
+    } elseif ($mode -eq 3) {
+        $hint.Text = L 'settings.search_hint_searxng'
     } else {
-        $hint.Text = '联网搜索已关闭；普通聊天、角色设定和本地记忆不受影响。'
+        $hint.Text = L 'settings.search_hint_off'
     }
 }
 
@@ -1391,6 +1590,7 @@ $wireApi.Add_SelectedIndexChanged({
 })
 Refresh-ReasoningChoices
 Refresh-SearchControls
+& $applyMainLocalization
 
 function Get-SelectedProviderKind {
     switch ($providerPreset.SelectedIndex) {
@@ -1454,10 +1654,10 @@ $providerPreset.Add_SelectedIndexChanged({
     $selectedKind = Get-SelectedProviderKind
     Load-ProviderProfile $selectedKind
     if ($selectedKind -eq 'volcengine') {
-        $searchBackend.SelectedItem = '模型内置'
+        $searchBackend.SelectedIndex = 1
     } elseif ($selectedKind -in @('deepseek', 'kimi', 'glm') `
-        -and [string]$searchBackend.SelectedItem -eq '模型内置') {
-        $searchBackend.SelectedItem = '关闭'
+        -and $searchBackend.SelectedIndex -eq 1) {
+        $searchBackend.SelectedIndex = 0
     }
 })
 
@@ -1490,10 +1690,10 @@ function Get-ApiErrorMessage([object] $ErrorRecord) {
             $code = [string]$errorBody.error.code
             $message = [string]$errorBody.error.message
             if ($code -eq 'ToolNotOpen') {
-                return '模型连接正常，但火山方舟账号尚未开通“联网内容插件”。请先在方舟控制台开通该插件后再测试。'
+                return (L 'settings.api_tool_not_open')
             }
             if ($code -eq 'InvalidEndpointOrModel.NotFound') {
-                return "当前模型名称不存在或账号无权访问：$modelName"
+                return (L 'settings.api_model_not_found' @($modelName))
             }
             if (-not [string]::IsNullOrWhiteSpace($message)) {
                 return $(if ($code) { "$code：$message" } else { $message })
@@ -1516,13 +1716,13 @@ $testButton.Add_Click({
         $parsedUri = $null
         if (-not [Uri]::TryCreate($base, [UriKind]::Absolute, [ref]$parsedUri) `
             -or $parsedUri.Scheme -notin @('http', 'https')) {
-            throw 'Base URL 必须是完整的 http:// 或 https:// 地址。'
+            throw (L 'settings.validation_base_url')
         }
-        if ([string]::IsNullOrWhiteSpace($modelName)) { throw '请填写模型名称。' }
-        if ([string]::IsNullOrWhiteSpace($testKey)) { throw '请填写 API 密钥。' }
+        if ([string]::IsNullOrWhiteSpace($modelName)) { throw (L 'settings.validation_model') }
+        if ([string]::IsNullOrWhiteSpace($testKey)) { throw (L 'settings.validation_api_key') }
 
         $isResponses = [string]$wireApi.SelectedItem -eq 'responses'
-        $testBuiltInSearch = [string]$searchBackend.SelectedItem -eq '模型内置'
+        $testBuiltInSearch = $searchBackend.SelectedIndex -eq 1
         $endpoint = $base + $(if ($isResponses) { '/responses' } else { '/chat/completions' })
         $payload = if ($isResponses) {
             @{
@@ -1577,26 +1777,26 @@ $testButton.Add_Click({
         if ($testBuiltInSearch -and $isResponses) {
             $searchUsed = @($testResult.output | Where-Object { $_.type -eq 'web_search_call' }).Count -gt 0
             if (-not $searchUsed) {
-                throw '接口返回了普通回复，但没有执行 web_search；当前模型或服务可能不支持模型内置搜索。'
+                throw (L 'settings.test_no_web_search')
             }
         }
         $successMessage = if ($testBuiltInSearch) {
-            '模型连接和联网搜索均成功。'
+            L 'settings.test_search_success'
         } else {
-            '模型连接成功。'
+            L 'settings.test_success'
         }
         [void][System.Windows.Forms.MessageBox]::Show(
             $form,
             $successMessage,
-            '测试连接',
+            (L 'settings.test'),
             [System.Windows.Forms.MessageBoxButtons]::OK,
             [System.Windows.Forms.MessageBoxIcon]::Information)
     } catch {
         $errorMessage = Get-ApiErrorMessage $_
         [void][System.Windows.Forms.MessageBox]::Show(
             $form,
-            "连接失败：$errorMessage",
-            '测试连接',
+            (L 'settings.test_failed' @($errorMessage)),
+            (L 'settings.test'),
             [System.Windows.Forms.MessageBoxButtons]::OK,
             [System.Windows.Forms.MessageBoxIcon]::Warning)
     } finally {
@@ -1617,13 +1817,13 @@ $saveButton.Add_Click({
         $parsedUri = $null
         if (-not [Uri]::TryCreate($base, [UriKind]::Absolute, [ref]$parsedUri) `
             -or $parsedUri.Scheme -notin @('http', 'https')) {
-            throw 'Base URL 必须是完整的 http:// 或 https:// 地址。'
+            throw (L 'settings.validation_base_url')
         }
         if ([string]::IsNullOrWhiteSpace($modelName)) {
-            throw '请填写模型名称。'
+            throw (L 'settings.validation_model')
         }
         if ([string]::IsNullOrWhiteSpace($newKey) -and [string]::IsNullOrWhiteSpace([string]$provider.api_key)) {
-            throw '请填写 API 密钥。'
+            throw (L 'settings.validation_api_key')
         }
         Capture-ProviderProfile
         Set-JsonProperty $config 'mock_mode' $false
@@ -1633,11 +1833,10 @@ $saveButton.Add_Click({
         Set-JsonProperty $config 'provider' $provider
         Set-JsonProperty $config 'provider_profiles' ([pscustomobject]$profiles)
 
-        $searchMode = [string]$searchBackend.SelectedItem
-        $searchBackendValue = switch ($searchMode) {
-            '模型内置' { 'provider' }
-            'Brave Search' { 'brave' }
-            'SearXNG' { 'searxng' }
+        $searchBackendValue = switch ($searchBackend.SelectedIndex) {
+            1 { 'provider' }
+            2 { 'brave' }
+            3 { 'searxng' }
             default { 'off' }
         }
         if ($searchBackendValue -eq 'provider') {
@@ -1645,13 +1844,13 @@ $saveButton.Add_Click({
                 -or ($selectedKind -eq 'volcengine' -and [string]$wireApi.SelectedItem -eq 'responses') `
                 -or ($selectedKind -eq 'custom' -and [string]$wireApi.SelectedItem -eq 'responses')
             if (-not $builtInAllowed) {
-                throw '当前服务商预设不支持此处的模型内置搜索，请选择 Brave Search 或 SearXNG。'
+                throw (L 'settings.validation_search_unsupported')
             }
         }
         if ($searchBackendValue -eq 'brave') {
             $newSearchKey = $searchKey.Text.Trim()
             if ([string]::IsNullOrWhiteSpace($newSearchKey) -and [string]::IsNullOrWhiteSpace($existingSearchKey)) {
-                throw '使用 Brave Search 时请填写搜索 API Key。'
+                throw (L 'settings.validation_brave_key')
             }
             if (-not [string]::IsNullOrWhiteSpace($newSearchKey)) {
                 Set-JsonProperty $webSearch 'api_key' $newSearchKey
@@ -1662,7 +1861,7 @@ $saveButton.Add_Click({
             $parsedSearchUri = $null
             if (-not [Uri]::TryCreate($searchUrl, [UriKind]::Absolute, [ref]$parsedSearchUri) `
                 -or $parsedSearchUri.Scheme -notin @('http', 'https')) {
-                throw 'SearXNG 地址必须是完整的 http:// 或 https:// 地址。'
+                throw (L 'settings.validation_searxng_url')
             }
             Set-JsonProperty $webSearch 'base_url' $searchUrl
         }
@@ -1671,7 +1870,21 @@ $saveButton.Add_Click({
         Set-JsonProperty $conversation 'reply_max_chars' ([int]$replyLimit.Value)
         Set-JsonProperty $conversation 'allow_parenthetical_actions' ([bool]$parentheticalActions.Checked)
         }
-        Set-JsonProperty $music 'preferred_player' $(if ($musicPreference.SelectedIndex -eq 1) { 'netease' } else { 'qqmusic' })
+        $selectedLanguageMode = switch ($languageMode.SelectedIndex) {
+            1 { 'zh-CN' }
+            2 { 'zh-TW' }
+            3 { 'en' }
+            4 { 'ja' }
+            default { 'follow_game' }
+        }
+        Set-JsonProperty $uiConfig 'language_mode' $selectedLanguageMode
+        $selectedMusicPlayer = if ($musicPreference.SelectedIndex -ge 0 -and
+            $musicPreference.SelectedIndex -lt $musicPlayerValues.Count) {
+            $musicPlayerValues[$musicPreference.SelectedIndex]
+        } else {
+            'qqmusic'
+        }
+        Set-JsonProperty $music 'preferred_player' $selectedMusicPlayer
         Set-JsonProperty $localContext 'enabled' ([bool]$localContextEnabled.Checked)
         Set-JsonProperty $localContext 'time_enabled' ([bool]$localTimeEnabled.Checked)
         Set-JsonProperty $localContext 'media_enabled' ([bool]$localMediaEnabled.Checked)
@@ -1689,14 +1902,14 @@ $saveButton.Add_Click({
             (New-Object Text.UTF8Encoding($false)))
         $reloaded = Reload-Companion
         $message = if ($reloaded) {
-            '配置已保存并立即生效。'
+            L 'settings.saved_live'
         } else {
-            '配置已保存。请重新启动桌宠后使用。'
+            L 'settings.saved_restart'
         }
         [void][System.Windows.Forms.MessageBox]::Show(
             $form,
             $message,
-            '莉莉丝 Mod 设置',
+            (L 'settings.title'),
             [System.Windows.Forms.MessageBoxButtons]::OK,
             [System.Windows.Forms.MessageBoxIcon]::Information)
         $form.DialogResult = [System.Windows.Forms.DialogResult]::OK
@@ -1705,13 +1918,15 @@ $saveButton.Add_Click({
         [void][System.Windows.Forms.MessageBox]::Show(
             $form,
             $_.Exception.Message,
-            '无法保存配置',
+            (L 'settings.save_failed'),
             [System.Windows.Forms.MessageBoxButtons]::OK,
             [System.Windows.Forms.MessageBoxIcon]::Warning)
     }
 })
 
-[void]$form.ShowDialog()
+if ($env:LILITH_CONFIGURE_STARTUP_SMOKE -ne '1') {
+    [void]$form.ShowDialog()
+}
 if ($null -ne $rewardCode.Image) {
     $rewardCode.Image.Dispose()
 }

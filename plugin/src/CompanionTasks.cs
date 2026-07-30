@@ -36,13 +36,14 @@ internal static class CompanionTasks
         string sessionId,
         string playerName,
         string message,
+        string locale,
         CancellationToken cancellationToken,
         Action<string, string, int, string> onSuccess,
         Action<string> onError)
     {
         try
         {
-            CompanionReply reply = await client.SendAsync(sessionId, playerName, message, cancellationToken).ConfigureAwait(false);
+            CompanionReply reply = await client.SendAsync(sessionId, playerName, message, locale, cancellationToken).ConfigureAwait(false);
             onSuccess(reply.Text, reply.Emotion, reply.DurationMs, reply.Status);
         }
         catch (OperationCanceledException)

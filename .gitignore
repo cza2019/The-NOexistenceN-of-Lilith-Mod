@@ -18,6 +18,8 @@ tools/
 *.pdb
 runtime.json
 character/private-source/
+character/translation-cache/
+character/translation-work/
 character/lore/candidates.local.json
 .vs/
 .vscode/

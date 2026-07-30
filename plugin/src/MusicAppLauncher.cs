@@ -18,44 +18,93 @@ internal static class MusicAppLauncher
 
     public static bool Open(ExternalMusicPlayer player)
     {
-        string processName = player == ExternalMusicPlayer.QqMusic ? "QQMusic" : "cloudmusic";
-        Process? running = Process.GetProcessesByName(processName).FirstOrDefault();
+        Process? running = MusicPlayerLocator.ProcessNames(player)
+            .SelectMany(Process.GetProcessesByName)
+            .FirstOrDefault();
         if (running is not null)
         {
             BringToFront(running);
             return true;
         }
 
-        string? path = MusicPlayerLocator.Locate(player, ReadCachedPath(player));
-        if (string.IsNullOrWhiteSpace(path))
+        foreach (MusicLaunchTarget target in MusicPlayerLocator.LocateLaunchTargets(
+            player,
+            ReadCachedPath(player)))
         {
-            return false;
-        }
+            try
+            {
+                string launchMode = target.Kind switch
+                {
+                    MusicLaunchKind.Executable => StartExecutable(target.Value),
+                    MusicLaunchKind.AppUserModelId => StartStoreApplication(target.Value)
+                        ? "app-activation"
+                        : string.Empty,
+                    _ => string.Empty
+                };
+                if (launchMode.Length == 0)
+                {
+                    continue;
+                }
 
+                if (target.Kind == MusicLaunchKind.Executable)
+                {
+                    WriteCachedPath(player, target.Value);
+                }
+                LilithModPlugin.PluginLog.LogInfo(
+                    $"Started {player}; launchMode={launchMode}");
+                return true;
+            }
+            catch (Exception error)
+            {
+                LilithModPlugin.PluginLog.LogWarning(
+                    $"Could not start {player} using {target.Kind}: " +
+                    $"{error.GetType().Name}: {error.Message}");
+            }
+        }
+        return false;
+    }
+
+    public static ExternalMusicPlayer PreferredPlayer()
+    {
         try
         {
-            string launchMode = StartOutsideSteamJob(path);
-            if (launchMode.Length == 0)
+            string configPath = ConfigPath();
+            if (!File.Exists(configPath))
             {
-                Process.Start(new ProcessStartInfo
-                {
-                    FileName = path,
-                    WorkingDirectory = Path.GetDirectoryName(path) ?? string.Empty,
-                    UseShellExecute = true
-                });
-                launchMode = "direct-fallback";
+                return ExternalMusicPlayer.QqMusic;
             }
-            WriteCachedPath(player, path);
-            LilithModPlugin.PluginLog.LogInfo(
-                $"Started {player}; launchMode={launchMode}");
-            return true;
+
+            using JsonDocument document = JsonDocument.Parse(File.ReadAllText(configPath));
+            if (document.RootElement.TryGetProperty("music", out JsonElement music)
+                && music.TryGetProperty("preferred_player", out JsonElement preferred)
+                && MusicPlayerLocator.TryParseConfigKey(preferred.GetString(), out ExternalMusicPlayer player))
+            {
+                return player;
+            }
         }
         catch (Exception error)
         {
             LilithModPlugin.PluginLog.LogWarning(
-                $"Could not start {player}: {error.GetType().Name}: {error.Message}");
-            return false;
+                $"Could not read music preference: {error.GetType().Name}: {error.Message}");
         }
+        return ExternalMusicPlayer.QqMusic;
+    }
+
+    private static string StartExecutable(string path)
+    {
+        string launchMode = StartOutsideSteamJob(path);
+        if (launchMode.Length != 0)
+        {
+            return launchMode;
+        }
+
+        Process.Start(new ProcessStartInfo
+        {
+            FileName = path,
+            WorkingDirectory = Path.GetDirectoryName(path) ?? string.Empty,
+            UseShellExecute = true
+        });
+        return "direct-fallback";
     }
 
     private static string StartOutsideSteamJob(string path)
@@ -167,33 +216,33 @@ internal static class MusicAppLauncher
         }
     }
 
-    public static ExternalMusicPlayer PreferredPlayer()
+    private static bool StartStoreApplication(string appUserModelId)
     {
+        object? activationManager = null;
         try
         {
-            string configPath = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-                "LilithAI",
-                "config.json");
-            if (!File.Exists(configPath))
-            {
-                return ExternalMusicPlayer.QqMusic;
-            }
-
-            using JsonDocument document = JsonDocument.Parse(File.ReadAllText(configPath));
-            if (document.RootElement.TryGetProperty("music", out JsonElement music)
-                && music.TryGetProperty("preferred_player", out JsonElement preferred)
-                && string.Equals(preferred.GetString(), "netease", StringComparison.OrdinalIgnoreCase))
-            {
-                return ExternalMusicPlayer.NeteaseCloudMusic;
-            }
+            activationManager = new ApplicationActivationManager();
+            int result = ((IApplicationActivationManager)activationManager).ActivateApplication(
+                appUserModelId,
+                arguments: string.Empty,
+                options: ActivateOptions.None,
+                out _);
+            return result >= 0;
         }
         catch (Exception error)
         {
-            LilithModPlugin.PluginLog.LogWarning(
-                $"Could not read music preference: {error.GetType().Name}: {error.Message}");
+            LilithModPlugin.PluginLog.LogDebug(
+                $"Store app activation failed for {appUserModelId}: " +
+                $"{error.GetType().Name}: {error.Message}");
+            return false;
         }
-        return ExternalMusicPlayer.QqMusic;
+        finally
+        {
+            if (activationManager is not null && Marshal.IsComObject(activationManager))
+            {
+                Marshal.FinalReleaseComObject(activationManager);
+            }
+        }
     }
 
     private static string ConfigPath()
@@ -214,8 +263,8 @@ internal static class MusicAppLauncher
                 return string.Empty;
             }
             JsonNode? root = JsonNode.Parse(File.ReadAllText(configPath));
-            string key = player == ExternalMusicPlayer.QqMusic ? "qqmusic" : "netease";
-            return root?["music"]?["player_paths"]?[key]?.GetValue<string>() ?? string.Empty;
+            return root?["music"]?["player_paths"]?[MusicPlayerLocator.ConfigKey(player)]?.GetValue<string>()
+                ?? string.Empty;
         }
         catch
         {
@@ -234,8 +283,7 @@ internal static class MusicAppLauncher
                 : new JsonObject();
             JsonObject music = root["music"] as JsonObject ?? new JsonObject();
             JsonObject paths = music["player_paths"] as JsonObject ?? new JsonObject();
-            string key = player == ExternalMusicPlayer.QqMusic ? "qqmusic" : "netease";
-            paths[key] = path;
+            paths[MusicPlayerLocator.ConfigKey(player)] = path;
             music["player_paths"] = paths;
             root["music"] = music;
             File.WriteAllText(configPath, root.ToJsonString(new JsonSerializerOptions { WriteIndented = true }));
@@ -269,4 +317,28 @@ internal static class MusicAppLauncher
 
     [DllImport("user32.dll")]
     private static extern bool SetForegroundWindow(IntPtr window);
+
+    [ComImport]
+    [Guid("2e941141-7f97-4756-ba1d-9decde894a3d")]
+    [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+    private interface IApplicationActivationManager
+    {
+        [PreserveSig]
+        int ActivateApplication(
+            [MarshalAs(UnmanagedType.LPWStr)] string appUserModelId,
+            [MarshalAs(UnmanagedType.LPWStr)] string arguments,
+            ActivateOptions options,
+            out uint processId);
+    }
+
+    [ComImport]
+    [Guid("45BA127D-10A8-46EA-8AB7-56EA9078943C")]
+    private class ApplicationActivationManager
+    {
+    }
+
+    private enum ActivateOptions
+    {
+        None = 0
+    }
 }

@@ -23,8 +23,12 @@ internal static class NoteConversationText
     private static readonly string[] SignatureTails =
     {
         "——莉莉丝",
+        "——莉莉絲",
+        "——リリス",
         "——Lilith",
         "—莉莉丝",
+        "—莉莉絲",
+        "—リリス",
         "—Lilith"
     };
 

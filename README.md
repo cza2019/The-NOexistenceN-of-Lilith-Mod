@@ -1,14 +1,17 @@
 # 《不存在的莉莉丝》Mod
 
+[简体中文](README.md) · [繁體中文](README.zh-TW.md) · [English](README.en.md) · [日本語](README.ja.md)
+
 `The NOexistenceN of Lilith Mod` 为 Steam 桌宠游戏《不存在的莉莉丝》增加
 生成式 AI 聊天、角色长期记忆、原作剧情检索、本机状态感知和外部音乐联动。
 普通玩家只需配置自己的服务模型，或仅使用音乐同步功能。
 
-> 当前版本：0.2.0 · Windows 10/11 x64
+> 当前版本：0.3.0 · Windows 10/11 x64
 
 ## 主要功能
 
 - 以《不/存在的你，和我》结局 1（即 Happy Ending）之后的莉莉丝为固定角色背景。
+- 一个安装包完整支持简体中文、繁體中文、English 和日本語；默认跟随游戏，也可在 Mod 设置中覆盖。
 - 支持 OpenAI兼容接口及 DeepSeek、Kimi、Qwen、GLM、火山方舟等预设。
 - 本地保存当前会话和莉莉丝对玩家的长期记忆，支持手动查看、修改和迁移。
 - 仅在相关问题中读取本机时间和白名单音乐软件的曲名、歌手及播放状态。
@@ -21,7 +24,7 @@
 
 ## 普通玩家安装
 
-1. 在 GitHub Releases 下载 `The-NOexistenceN-of-Lilith-Mod-v0.2.0-win-x64.zip`。
+1. 在 GitHub Releases 下载 `The-NOexistenceN-of-Lilith-Mod-v0.3.0-win-x64.zip`。
 2. 完全退出《不存在的莉莉丝》。
 3. 将 ZIP 内全部内容解压到游戏根目录，使 `winhttp.dll` 与 `Lilith.exe` 同级。
 4. 从 Steam正常启动游戏。首次加载 BepInEx可能比平时慢。
@@ -69,4 +72,4 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-bundle.ps1
 - BepInEx、Unity基础类库、Node.js、.NET等组件使用各自条款，详见 [第三方组件声明](THIRD-PARTY-NOTICES.md)。
 - 本项目不包含游戏本体，使用者必须通过 Steam合法安装《不存在的莉莉丝》。
 
-macOS适配、设置窗口脱离 PowerShell和自动覆盖更新不属于 0.2.0 首发范围。
+macOS适配、设置窗口脱离 PowerShell和自动覆盖更新不属于 0.3.0 范围。

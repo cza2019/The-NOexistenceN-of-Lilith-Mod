@@ -13,7 +13,11 @@ internal static class Program
         "qqmusic",
         "spotify",
         "music.ui",
-        "applemusic"
+        "applemusic",
+        "appleinc.applemusicwin",
+        "amazonmusic",
+        "amazon music",
+        "amazonmobilellc.amazonmusic"
     };
 
     private static readonly JsonSerializerOptions JsonOptions = new()

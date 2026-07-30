@@ -38,6 +38,7 @@ internal sealed class CompanionClient
         string sessionId,
         string playerName,
         string message,
+        string locale,
         CancellationToken cancellationToken)
     {
         var payload = new
@@ -46,6 +47,7 @@ internal sealed class CompanionClient
             request_id = Guid.NewGuid().ToString("N"),
             player = new { name = playerName },
             mode = "in_character",
+            locale = ModLocalization.NormalizeLocale(locale),
             message
         };
 

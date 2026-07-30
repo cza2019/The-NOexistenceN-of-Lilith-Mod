@@ -34,4 +34,27 @@ if (DialogueTextFormatter.Wrap(shortText, 15) != shortText)
     throw new InvalidOperationException("Short text should not be changed.");
 }
 
+string english = DialogueTextFormatter.WrapForLocale(
+    "Lilith remembers the strawberry cake we made together, and she still treasures that afternoon.",
+    "en-US");
+foreach (string line in english.Split('\n'))
+{
+    if (line.Length > 30 || line.StartsWith(' ') || line.EndsWith(' '))
+    {
+        throw new InvalidOperationException($"English visual wrap is invalid: [{line}]");
+    }
+}
+if (!english.Contains('\n') || english.Contains("strawberry\ncake", StringComparison.Ordinal))
+{
+    throw new InvalidOperationException("English wrapping should prefer word boundaries.");
+}
+
+string japanese = DialogueTextFormatter.WrapForLocale(
+    "リリスと一緒に作った苺のケーキのことを、今でもちゃんと覚えているよ。",
+    "ja");
+if (!japanese.Contains('\n'))
+{
+    throw new InvalidOperationException("Japanese full-width wrapping should create multiple lines.");
+}
+
 Console.WriteLine("Dialogue formatter tests passed.");
