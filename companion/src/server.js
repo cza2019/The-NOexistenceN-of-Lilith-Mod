@@ -554,9 +554,32 @@ function localContextRelevance(message) {
   const text = String(message || '').trim();
   return {
     time: /(幾點|几点|時間|时间|日期|幾號|几号|星期|週幾|周几|今天|明天|昨天|早上|上午|中午|午休|下午|晚上|今晚|凌晨|該睡|该睡|起床|何時|何時頃|何時ごろ|何時ですか|何曜日|今日|明日|昨日|朝|昼|午後|今夜|深夜|寝る|起きる|what\s+time|today|date|weekday)/i.test(text),
-    media: /((這|这|那|當前|当前|現在|现在|正在|剛才|刚才|目前).{0,8}(歌|曲|音樂|音乐|播放|聽|听)|(歌|歌曲|曲子|音樂|音乐).{0,10}(怎麼樣|怎么样|叫什麼|叫什么|誰唱|谁唱|歌手|歌詞|歌词|專輯|专辑|背景|評價|评价)|(この|今の|現在の|さっきの).{0,8}(曲|歌|音楽|再生)|(曲|歌|音楽).{0,10}(どう|名前|誰|歌手|歌詞|アルバム|感想|評価)|你.{0,8}(聽見|听见|聽到|听到).{0,6}(歌|音樂|音乐)|current\s+(song|track)|this\s+(song|track))/i.test(text)
-      || mediaRecommendationRequested(text)
+    media: currentMediaReferenced(text) || mediaRecommendationRequested(text)
   };
+}
+
+function currentMediaReferenced(message) {
+  const text = String(message || '').trim();
+  if (!text) return false;
+  const chinese = [
+    /(?:我|我們|我们|咱們|咱们)(?:(?:現在|现在|目前|剛才|刚才)?(?:正)?在)(?:聽|听|播放|放)(?:著|着)?(?:的)?(?:是)?(?:什麼|什么|哪(?:一)?首|啥)?(?:歌|歌曲|曲子|音樂|音乐)?/i,
+    /(?:我|我們|我们|咱們|咱们)(?:現在|现在|目前|剛才|刚才)?(?:聽|听|播放|放)(?:的)?(?:是)?(?:什麼|什么|哪(?:一)?首|啥)(?:首)?(?:歌|歌曲|曲子|音樂|音乐)?/i,
+    /(?:現在|现在|正在|當前|当前|目前|剛才|刚才)(?:正?在)?(?:播放|播|放|聽|听)(?:著|着)?(?:的)?(?:是)?(?:什麼|什么|哪(?:一)?首|啥)?(?:首)?(?:歌|歌曲|曲子|音樂|音乐)?/i,
+    /(?:(?:這|这|那)(?:一)?首|(?:剛才|刚才|目前)(?:的|那|這|这)?(?:一)?首?)(?:歌|歌曲|曲|曲子)/i,
+    /(?:這|这|那)(?:是|叫)?(?:什麼|什么|哪(?:一)?首|啥)(?:歌|歌曲|曲子)/i,
+    /你.{0,8}(?:聽見|听见|聽到|听到).{0,8}(?:我)?.{0,8}(?:歌|歌曲|曲子|音樂|音乐|播放)/i
+  ].some(pattern => pattern.test(text));
+  if (chinese) return true;
+
+  const japanese = [
+    /(?:私|わたし|僕|ぼく|俺)?(?:は|が)?(?:今|現在|さっき).{0,10}(?:何|どの|曲|歌|音楽|再生|流れ|聴い|聞い)/i,
+    /(?:何|どの)(?:の)?(?:曲|歌|音楽)?.{0,10}(?:聴いて|聞いて|流れて|再生)/i,
+    /(?:この|その|あの|今の|現在の|さっきの)(?:曲|歌|音楽)/i
+  ].some(pattern => pattern.test(text));
+  if (japanese) return true;
+
+  return /\b(?:what(?:'s| is) (?:currently )?playing|what (?:(?:song|track|music)\s+)?(?:am i|are we) listening to|(?:current|currently playing|this|that|previous|last) (?:song|track)|(?:song|track) (?:i'm|i am|we're|we are) listening to|can you (?:hear|identify|name).{0,20}(?:song|track|music))\b/i
+    .test(text);
 }
 
 function mediaRecommendationRequested(message) {
@@ -926,7 +949,26 @@ function parseModelEnvelope(rawText) {
       // Keep the original text when the provider did not follow the schema.
     }
   }
-  return { text };
+  const lines = text.split(/\r?\n/);
+  const metadata = {};
+  let end = lines.length;
+  let foundMetadata = false;
+  while (end > 0) {
+    const line = lines[end - 1].trim();
+    if (!line && foundMetadata) {
+      end -= 1;
+      continue;
+    }
+    const match = line.match(/^(emotion|animation)\s*[:=]\s*["'`]?([a-z][a-z0-9_-]{0,31})["'`]?\s*[,;]?$/i);
+    if (!match) break;
+    foundMetadata = true;
+    const key = match[1].toLowerCase();
+    if (!Object.hasOwn(metadata, key)) metadata[key] = match[2].toLowerCase();
+    end -= 1;
+  }
+  return foundMetadata
+    ? { text: lines.slice(0, end).join('\n').trim(), ...metadata }
+    : { text };
 }
 
 function fitReplyText(value, maxChars, locale = DEFAULT_LOCALE) {
@@ -1032,15 +1074,18 @@ function replyMatchesLocale(value, locale = DEFAULT_LOCALE) {
   const latin = scriptCount(text, /\p{Script=Latin}/gu);
 
   if (normalizedLocale === 'en') {
-    if (kana > 0) return false;
-    return han === 0 || (latin >= Math.max(4, han * 2));
+    const cjk = han + kana;
+    return !(cjk >= 4 && cjk >= latin * 1.5);
   }
   if (normalizedLocale === 'ja') {
-    if (kana > 0) return true;
-    return han > 0 && han <= 8 && latin <= 8;
+    const japanese = han + kana;
+    const chineseDominant = han >= 8 && kana * 3 < han;
+    const englishDominant = latin >= 12 && latin >= japanese * 3;
+    return !chineseDominant && !englishDominant;
   }
-  if (kana > 0) return false;
-  return han > 0 || latin === 0;
+  const japaneseDominant = kana >= 3 && kana >= han * 1.5;
+  const englishDominant = latin >= 12 && latin >= han * 3;
+  return !japaneseDominant && !englishDominant;
 }
 
 function buildSystemPrompt(
@@ -1818,6 +1863,7 @@ module.exports = {
   localContextRelevance,
   localTimeAnswersQuestion,
   localTimeSnapshot,
+  currentMediaReferenced,
   mediaRecommendationRequested,
   mediaSearchRequested,
   formatLorePrompt,

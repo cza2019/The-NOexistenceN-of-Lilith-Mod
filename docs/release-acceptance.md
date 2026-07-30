@@ -1,6 +1,6 @@
-# v0.3.0 干净电脑验收表
+# v0.3.1 干净电脑验收表
 
-测试包：`The-NOexistenceN-of-Lilith-Mod-v0.3.0-win-x64.zip`
+测试包：`The-NOexistenceN-of-Lilith-Mod-v0.3.1-win-x64.zip`
 
 ## 四语本地化
 
@@ -14,7 +14,7 @@
 候选 SHA-256：
 
 ```text
-46a8dc821e9341d4a4322a1cdf3753fde6d1b5dcddd5b04a984ff77ff511497a
+11d02f6cb58f070511adf3c697a47d1dfc3ebeb937c8c0ea70f9eade711a079a
 ```
 
 ## 环境

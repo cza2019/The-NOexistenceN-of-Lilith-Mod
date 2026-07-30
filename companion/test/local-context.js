@@ -4,6 +4,7 @@ const assert = require('assert');
 const {
   buildSearchQuery,
   createLocalContextSnapshot,
+  currentMediaReferenced,
   localContextPrompt,
   localContextRelevance,
   localTimeAnswersQuestion,
@@ -53,6 +54,38 @@ assert.deepStrictEqual(localContextRelevance('再给我推荐一些符合我口�
 });
 assert.strictEqual(mediaRecommendationRequested('来几首类似的歌'), true);
 assert.strictEqual(mediaRecommendationRequested('推荐点这种风格的音乐'), true);
+for (const message of [
+  '我在听什么歌',
+  '我在聽什麼歌',
+  '我正在听什么歌',
+  '我听的是什么歌',
+  '我现在听的是哪一首',
+  '现在放的什么歌',
+  '正在播放什么歌',
+  '刚才那首歌怎么样',
+  '这是什么歌',
+  '你能听到我播放的音乐吗',
+  '这首歌是谁唱的',
+  '今何の曲を聴いてる？',
+  'この曲は誰の歌？',
+  'What am I listening to?',
+  'What song am I listening to?',
+  "What's currently playing?",
+  'Can you identify this song?'
+]) {
+  assert.strictEqual(currentMediaReferenced(message), true, `media reference not recognized: ${message}`);
+}
+for (const message of [
+  '我以前学过音乐',
+  '这款游戏的音乐不错',
+  '给我讲讲音乐史',
+  '歌这个字怎么写',
+  '她唱的歌很好听',
+  'Music theory is interesting.',
+  '音楽の歴史について話して。'
+]) {
+  assert.strictEqual(currentMediaReferenced(message), false, `unrelated media reference matched: ${message}`);
+}
 assert.deepStrictEqual(localContextRelevance('现在几点，今天星期几？'), {
   time: true,
   media: false

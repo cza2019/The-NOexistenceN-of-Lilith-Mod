@@ -2,7 +2,7 @@
 
 ## 安裝
 
-1. 從 Releases 下載 `The-NOexistenceN-of-Lilith-Mod-v0.3.0-win-x64.zip`，並核對同頁 SHA-256。
+1. 從 Releases 下載 `The-NOexistenceN-of-Lilith-Mod-v0.3.1-win-x64.zip`，並核對同頁 SHA-256。
 2. 從系統匣結束《不存在的莉莉絲》，確認 Steam 不再顯示「停止」。
 3. 將 ZIP 內所有內容解壓到遊戲根目錄。正確結構中，`winhttp.dll`、`Lilith.exe`、`BepInEx` 與 `dotnet` 位於遊戲目錄。
 4. 從 Steam 啟動。首次建立 IL2CPP 快取可能較慢，請勿在載入時強制關閉。

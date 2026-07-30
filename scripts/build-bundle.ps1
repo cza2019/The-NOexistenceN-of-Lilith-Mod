@@ -204,7 +204,11 @@ Copy-Item -LiteralPath (Join-Path $repo 'docs\installation.md') -Destination $pu
 foreach ($localizedInstallation in @('installation.zh-TW.md', 'installation.en.md', 'installation.ja.md')) {
     Copy-Item -LiteralPath (Join-Path $repo "docs\$localizedInstallation") -Destination $publicDocsOutput
 }
-Copy-Item -LiteralPath (Join-Path $repo 'docs\release-notes-v0.3.0.md') -Destination $publicDocsOutput
+$releaseNotesPath = Join-Path $repo "docs\release-notes-v$version.md"
+if (-not (Test-Path -LiteralPath $releaseNotesPath)) {
+    throw "Release notes not found for v$version`: $releaseNotesPath"
+}
+Copy-Item -LiteralPath $releaseNotesPath -Destination $publicDocsOutput
 
 $releaseManifest = [ordered]@{
     schema_version = 1

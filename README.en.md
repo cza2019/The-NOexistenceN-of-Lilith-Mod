@@ -4,7 +4,7 @@
 
 This Mod adds generative-AI conversation, long-term player memory, local lore retrieval, relevant PC context, and external-music synchronisation to the Steam desktop pet *The NOexistenceN of Lilith*. Players only need to configure their own model provider, or may use the music features without AI.
 
-> Current version: 0.3.0 · Windows 10/11 x64
+> Current version: 0.3.1 · Windows 10/11 x64
 
 ## Highlights
 
@@ -18,7 +18,7 @@ This Mod adds generative-AI conversation, long-term player memory, local lore re
 
 ## Install
 
-1. Download `The-NOexistenceN-of-Lilith-Mod-v0.3.0-win-x64.zip` from GitHub Releases.
+1. Download `The-NOexistenceN-of-Lilith-Mod-v0.3.1-win-x64.zip` from GitHub Releases.
 2. Fully quit *The NOexistenceN of Lilith*.
 3. Extract every file into the game root so that `winhttp.dll` is beside `Lilith.exe`.
 4. Start the game from Steam. The first BepInEx launch may take longer.

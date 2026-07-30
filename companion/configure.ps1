@@ -58,7 +58,7 @@ $releaseInfoPath = Join-Path $PSScriptRoot 'release-info.json'
 New-Item -ItemType Directory -Path $dataRoot -Force | Out-Null
 
 $releaseInfo = [pscustomobject]@{
-    version = '0.3.0'
+    version = '0.3.1'
     github_repository = ''
 }
 if (Test-Path -LiteralPath $releaseInfoPath) {
