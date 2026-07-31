@@ -171,7 +171,7 @@
     "settings.memory_rules_overview": "手动调整方法与规范：\r\n· 游戏运行时可在编辑窗口顶部修改游戏内玩家称呼，原有长期记忆会自动迁移。\r\n· 每行填写一条记忆：项目≤24字符，内容≤100字符。\r\n· 最多{0}条，项目和内容合计≤{1}字符。\r\n· 选中整行后按 Delete 可删除；保存后从下一轮对话生效。\r\n· 迁移设备时复制整个 players 目录；修改和校验均在本地完成，不调用 AI。\r\n· 请勿填写密码、验证码、证件、银行卡或 API 密钥。",
     "settings.searxng_url": "SearXNG 地址",
     "settings.update_not_configured": "GitHub 仓库尚未配置。项目发布后即可按 Release 版本检查；当前不会下载或替换任何文件。",
-    "settings.update_ready": "从 GitHub Releases 查询最新正式版。当前只检查并打开下载页，不会自动替换文件。",
+    "settings.update_ready": "游戏启动时自动检查一次。也可在此查询 GitHub 最新正式版；不会自动替换文件。",
     "settings.update_not_configured_dialog": "GitHub 仓库尚未配置。等 Mod 发布后填写 owner/repository，即可启用版本检查。",
     "settings.update_connecting": "正在连接 GitHub Releases……",
     "settings.update_invalid_tag": "无法识别 GitHub Release 版本号：{0}",

@@ -21,6 +21,8 @@
 6. 从 Steam启动游戏。首次运行会使用包内附带的 Unity基础库在本地生成 BepInEx IL2CPP缓存，耗时可能较长，但不需要连接 `unity.bepinex.dev`。
 7. 打开“Mod设置 → 其他”，选择跟随游戏或手动指定 Mod 语言；再按需配置模型服务并点击“测试连接”。
 
+游戏启动后会在后台检查一次 GitHub 最新正式版。已经是最新版或网络不可用时不会弹窗；发现新版时只询问是否打开对应 Release，不会自动下载或替换文件。
+
 ## 配置 Gemini
 
 1. 在 Google AI Studio 创建玩家自己的 Gemini API Key，并确认账号所在地区可使用 Gemini API 与 Google Search grounding。

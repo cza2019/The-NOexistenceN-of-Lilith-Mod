@@ -21,6 +21,7 @@ public sealed class LilithRuntimeBehaviour : MonoBehaviour
     private readonly MediaPollCoordinator _mediaPollCoordinator = new();
     private readonly MemoryDiagnostics _memoryDiagnostics = new();
     private readonly PlayerNameBridge _playerNameBridge = new();
+    private readonly StartupUpdateCoordinator _startupUpdateCheck = new();
     private CancellationTokenSource _lifetime = new();
     private string _input = "";
     private string _lastReply = "";
@@ -75,6 +76,11 @@ public sealed class LilithRuntimeBehaviour : MonoBehaviour
         {
             _nextCompanionHealthCheck = Time.unscaledTime + 3f;
             LilithModPlugin.EnsureCompanionRunning();
+        }
+
+        if (_startupUpdateCheck.TryBegin(Time.unscaledTime))
+        {
+            BeginStartupUpdateCheck();
         }
 
         if (!_chatHistoryLoaded && !_chatHistoryLoading && Time.unscaledTime >= _nextChatHistoryLoad)
@@ -155,6 +161,7 @@ public sealed class LilithRuntimeBehaviour : MonoBehaviour
 
     public void OnDestroy()
     {
+        _startupUpdateCheck.Cancel();
         _mediaPollCoordinator.Cancel();
         _lifetime.Cancel();
         LilithModPlugin.ShutdownCompanion();
@@ -174,6 +181,7 @@ public sealed class LilithRuntimeBehaviour : MonoBehaviour
 
     public void OnApplicationQuit()
     {
+        _startupUpdateCheck.Cancel();
         _mediaPollCoordinator.Cancel();
         _lifetime.Cancel();
         _playerNameBridge.Dispose();
@@ -196,6 +204,7 @@ public sealed class LilithRuntimeBehaviour : MonoBehaviour
         Application.runInBackground = true;
         _visible = false;
         ExternalMusicState.SetArmed(true);
+        _startupUpdateCheck.Start(Time.unscaledTime);
 
         string legacySentinel = Path.Combine(Paths.PluginPath, "LilithMod.legacy-chat");
         if (!File.Exists(legacySentinel))
@@ -228,6 +237,50 @@ public sealed class LilithRuntimeBehaviour : MonoBehaviour
 
         LilithModPlugin.PluginLog.LogInfo("Unity background execution enabled");
         LilithModPlugin.PluginLog.LogInfo("External music auto-monitor armed");
+    }
+
+    [HideFromIl2Cpp]
+    private void BeginStartupUpdateCheck()
+    {
+        CompanionTasks.CheckForUpdate(
+            _client,
+            LilithModPlugin.PluginVersion,
+            _lifetime.Token,
+            result => _mainThread.Enqueue(() => CompleteStartupUpdateCheck(result)),
+            () => _mainThread.Enqueue(RetryStartupUpdateCheck));
+    }
+
+    [HideFromIl2Cpp]
+    private void CompleteStartupUpdateCheck(StartupUpdateResult result)
+    {
+        if (!_startupUpdateCheck.Complete())
+        {
+            return;
+        }
+        if (result.Status == "update_available")
+        {
+            LilithModPlugin.PluginLog.LogInfo(
+                $"Startup update check found {result.LatestVersion}");
+            StartupUpdatePrompt.Show(result.LatestVersion, result.ReleaseUrl);
+            return;
+        }
+        LilithModPlugin.PluginLog.LogInfo(
+            result.Status == "up_to_date"
+                ? "Startup update check found no newer release"
+                : "Startup update check was unavailable");
+    }
+
+    [HideFromIl2Cpp]
+    private void RetryStartupUpdateCheck()
+    {
+        if (_startupUpdateCheck.RetryAfterCompanionUnavailable(Time.unscaledTime))
+        {
+            LilithModPlugin.PluginLog.LogDebug(
+                "Companion is not ready for the startup update check; retrying shortly");
+            return;
+        }
+        LilithModPlugin.PluginLog.LogWarning(
+            "Startup update check skipped because Companion did not become ready");
     }
 
     [HideFromIl2Cpp]

@@ -1,6 +1,6 @@
-# v0.3.1 干净电脑验收表
+# v0.3.2 干净电脑验收表
 
-测试包：`The-NOexistenceN-of-Lilith-Mod-v0.3.1-win-x64.zip`
+测试包：`The-NOexistenceN-of-Lilith-Mod-v0.3.2-win-x64.zip`
 
 ## 四语本地化
 
@@ -14,7 +14,7 @@
 候选 SHA-256：
 
 ```text
-11d02f6cb58f070511adf3c697a47d1dfc3ebeb937c8c0ea70f9eade711a079a
+6f14add46a711ae78ccb47d9f57b0a9aa9bd8cc4008321a434ed80485a2d722a
 ```
 
 ## 环境
@@ -59,6 +59,9 @@
 - [ ] `%APPDATA%\LilithAI\sessions` 不含 thought、signature、`google_search_call` 或 Search Suggestions；重启后仍能基于可见历史继续对话。
 - [ ] 缺少 WebView2 Evergreen Runtime 的干净环境会使用默认浏览器打开完整结果页。
 - [ ] 显式 HTTP/HTTPS 代理、`HTTPS_PROXY/HTTP_PROXY` 与直连均可用，代理不影响 Companion loopback 通信；含认证或 SOCKS 地址会被拒绝。
+- [ ] 游戏启动后后台只查询一次 GitHub 最新正式 Release；当前已是最新版时不弹提示。
+- [ ] 假服务返回较新版本时，四语确认框只出现一次；选择“否”不打开浏览器，选择“是”打开对应 HTTPS GitHub Release。
+- [ ] GitHub 断网、超时、404 或 429 时不弹错误窗口，不影响聊天、音乐和游戏启动，日志不包含响应正文。
 
 ## 音乐
 

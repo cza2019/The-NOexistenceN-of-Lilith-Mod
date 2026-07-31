@@ -9,5 +9,7 @@
   <ItemGroup>
     <Compile Include="..\..\plugin\src\MediaPollCoordinator.cs" Link="MediaPollCoordinator.cs" />
     <Compile Include="..\..\plugin\src\CompanionRuntimeCache.cs" Link="CompanionRuntimeCache.cs" />
+    <Compile Include="..\..\plugin\src\StartupUpdateCoordinator.cs" Link="StartupUpdateCoordinator.cs" />
+    <Compile Include="..\..\plugin\src\UpdateReleaseUrl.cs" Link="UpdateReleaseUrl.cs" />
   </ItemGroup>
 </Project>

@@ -171,7 +171,7 @@
     "settings.memory_rules_overview": "手動編集の方法と規則：\r\n· ゲーム実行中は、エディター上部でゲーム内の呼び名を変更できます。既存の長期記憶は自動的に移行されます。\r\n· 1行につき記憶1件：項目は24文字以内、内容は100文字以内。\r\n· 最大{0}件、項目と内容の合計は{1}文字以内。\r\n· 行全体を選択して Delete を押すと削除できます。保存内容は次の返答から反映されます。\r\n· 端末移行時は players フォルダー全体をコピーしてください。編集と検証はローカルで行われ、AI は呼び出しません。\r\n· パスワード、認証コード、身分証、カード情報、API キーは入力しないでください。",
     "settings.searxng_url": "SearXNG URL",
     "settings.update_not_configured": "GitHub リポジトリはまだ設定されていません。公開後に Release のバージョンを確認できるようになります。現在はファイルのダウンロードや置換を行いません。",
-    "settings.update_ready": "GitHub Releases で最新の正式版を確認します。ダウンロードページを開くだけで、ファイルを自動置換しません。",
+    "settings.update_ready": "ゲーム起動時に一度自動確認します。ここから GitHub の最新正式版を手動確認することもできます。ファイルは自動置換しません。",
     "settings.update_not_configured_dialog": "GitHub リポジトリが未設定です。公開後に owner/repository を設定すると更新確認を利用できます。",
     "settings.update_connecting": "GitHub Releases に接続しています……",
     "settings.update_invalid_tag": "GitHub Release のバージョンを認識できません：{0}",

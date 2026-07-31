@@ -5,6 +5,8 @@ using LilithMod;
 
 await VerifyMediaSingleFlight();
 VerifyRuntimeCache();
+VerifyStartupUpdateCoordinator();
+VerifyUpdateReleaseUrl();
 Console.WriteLine("Runtime resource tests passed.");
 
 static async Task VerifyMediaSingleFlight()
@@ -81,6 +83,79 @@ static void VerifyRuntimeCache()
     finally
     {
         Directory.Delete(root, true);
+    }
+}
+
+static void VerifyStartupUpdateCoordinator()
+{
+    var coordinator = new StartupUpdateCoordinator();
+    coordinator.Start(100f);
+    coordinator.Start(200f);
+    if (coordinator.TryBegin(104.99f)
+        || !coordinator.TryBegin(105f)
+        || coordinator.TryBegin(105f)
+        || !coordinator.Pending)
+    {
+        throw new InvalidOperationException("The startup update check must begin once after five seconds.");
+    }
+    if (!coordinator.RetryAfterCompanionUnavailable(105f)
+        || coordinator.Pending
+        || coordinator.NextAttempt != 107f
+        || coordinator.TryBegin(106.99f)
+        || !coordinator.TryBegin(107f))
+    {
+        throw new InvalidOperationException("Companion readiness retries must use a two-second interval.");
+    }
+    if (!coordinator.Complete()
+        || !coordinator.Completed
+        || coordinator.TryBegin(108f)
+        || coordinator.Complete())
+    {
+        throw new InvalidOperationException("A structured update result must complete the launch check once.");
+    }
+
+    var expired = new StartupUpdateCoordinator();
+    expired.Start(0f);
+    if (expired.TryBegin(20.01f) || !expired.Completed)
+    {
+        throw new InvalidOperationException("Companion readiness must stop after twenty seconds.");
+    }
+
+    var cancelled = new StartupUpdateCoordinator();
+    cancelled.Start(0f);
+    cancelled.Cancel();
+    if (cancelled.TryBegin(5f) || !cancelled.Completed)
+    {
+        throw new InvalidOperationException("Game shutdown must cancel the startup update check.");
+    }
+}
+
+static void VerifyUpdateReleaseUrl()
+{
+    const string valid =
+        "https://github.com/cza2019/The-NOexistenceN-of-Lilith-Mod/releases/tag/v0.3.2";
+    Uri? accepted = UpdateReleaseUrl.Select(true, valid);
+    if (accepted is null || accepted.AbsoluteUri != valid)
+    {
+        throw new InvalidOperationException("A confirmed official GitHub Release URL must be accepted.");
+    }
+    if (UpdateReleaseUrl.Select(false, valid) is not null)
+    {
+        throw new InvalidOperationException("Choosing No must never open the Release URL.");
+    }
+    foreach (string blocked in new[]
+    {
+        "http://github.com/cza2019/The-NOexistenceN-of-Lilith-Mod/releases/tag/v0.3.2",
+        "https://evil.example/cza2019/The-NOexistenceN-of-Lilith-Mod/releases/tag/v0.3.2",
+        "https://github.com/cza2019/The-NOexistenceN-of-Lilith-Mod/releases/latest",
+        "https://github.com/cza2019/The-NOexistenceN-of-Lilith-Mod/releases/tag/",
+        "https://github.com@evil.example/cza2019/The-NOexistenceN-of-Lilith-Mod/releases/tag/v0.3.2"
+    })
+    {
+        if (UpdateReleaseUrl.Select(true, blocked) is not null)
+        {
+            throw new InvalidOperationException($"Unsafe update URL was accepted: {blocked}");
+        }
     }
 }
 

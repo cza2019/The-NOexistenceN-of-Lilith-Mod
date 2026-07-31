@@ -2,13 +2,15 @@
 
 ## 安裝
 
-1. 從 Releases 下載 `The-NOexistenceN-of-Lilith-Mod-v0.3.1-win-x64.zip`，並核對同頁 SHA-256。
+1. 從 Releases 下載 `The-NOexistenceN-of-Lilith-Mod-v0.3.2-win-x64.zip`，並核對同頁 SHA-256。
 2. 從系統匣結束《不存在的莉莉絲》，確認 Steam 不再顯示「停止」。
 3. 將 ZIP 內所有內容解壓到遊戲根目錄。正確結構中，`winhttp.dll`、`Lilith.exe`、`BepInEx` 與 `dotnet` 位於遊戲目錄。
 4. 從 Steam 啟動。首次建立 IL2CPP 快取可能較慢，請勿在載入時強制關閉。
 5. 右鍵莉莉絲或系統匣開啟「Mod 設定」。在「其他」頁選擇跟隨遊戲或指定語言；AI 對話使用玩家自行提供的 API。
 
 安裝包已包含 BepInEx、Node.js 與媒體橋接；不需要全域安裝或固定 Node 版本。Mod 設定使用 Windows 10/11 內建的 Windows PowerShell 5.1。
+
+遊戲啟動時會在背景檢查一次 GitHub 最新正式版。已是最新版或 GitHub 無法連線時不會顯示對話框；發現新版時只詢問是否開啟 Release，不會自動下載或取代檔案。
 
 ## 設定 Gemini
 

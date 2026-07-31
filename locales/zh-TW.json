@@ -171,7 +171,7 @@
     "settings.memory_rules_overview": "手動調整方法與規範：\r\n· 遊戲執行時可在編輯視窗頂部修改遊戲內玩家稱呼，原有長期記憶會自動遷移。\r\n· 每列填寫一條記憶：項目≤24字元，內容≤100字元。\r\n· 最多{0}條，項目和內容合計≤{1}字元。\r\n· 選取整列後按 Delete 可刪除；保存後從下一輪對話生效。\r\n· 遷移裝置時複製整個 players 目錄；修改和校驗均在本機完成，不呼叫 AI。\r\n· 請勿填寫密碼、驗證碼、證件、銀行卡或 API 金鑰。",
     "settings.searxng_url": "SearXNG 位址",
     "settings.update_not_configured": "尚未設定 GitHub 儲存庫。專案發佈後即可依 Release 版本檢查；目前不會下載或替換任何檔案。",
-    "settings.update_ready": "從 GitHub Releases 查詢最新正式版。目前只檢查並開啟下載頁，不會自動替換檔案。",
+    "settings.update_ready": "遊戲啟動時自動檢查一次。也可在此查詢 GitHub 最新正式版；不會自動替換檔案。",
     "settings.update_not_configured_dialog": "尚未設定 GitHub 儲存庫。Mod 發佈後填寫 owner/repository，即可啟用版本檢查。",
     "settings.update_connecting": "正在連線 GitHub Releases……",
     "settings.update_invalid_tag": "無法識別 GitHub Release 版本號：{0}",

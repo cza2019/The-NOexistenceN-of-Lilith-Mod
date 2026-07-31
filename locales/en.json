@@ -171,7 +171,7 @@
     "settings.memory_rules_overview": "How to edit safely:\r\n· While the game is running, the in-game player name can be changed at the top of the editor; existing long-term memory is migrated automatically.\r\n· Each row is one memory: category ≤24 characters, content ≤100 characters.\r\n· Up to {0} entries and {1} Unicode characters in total.\r\n· Select complete rows and press Delete to remove them; changes apply from the next reply.\r\n· To migrate devices, copy the entire players folder. Editing and validation are local and never call AI.\r\n· Never enter passwords, verification codes, identity documents, payment-card data, or API keys.",
     "settings.searxng_url": "SearXNG URL",
     "settings.update_not_configured": "The GitHub repository is not configured yet. Release checks will become available after publication; no files are downloaded or replaced now.",
-    "settings.update_ready": "Check GitHub Releases for the latest stable version. This only opens the download page and never replaces files automatically.",
+    "settings.update_ready": "The game checks once at startup. You can also check the latest stable GitHub Release here; files are never replaced automatically.",
     "settings.update_not_configured_dialog": "The GitHub repository is not configured. Enter owner/repository after publication to enable update checks.",
     "settings.update_connecting": "Connecting to GitHub Releases…",
     "settings.update_invalid_tag": "Could not recognize the GitHub Release version: {0}",

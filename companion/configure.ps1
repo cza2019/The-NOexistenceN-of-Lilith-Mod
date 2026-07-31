@@ -58,7 +58,7 @@ $releaseInfoPath = Join-Path $PSScriptRoot 'release-info.json'
 New-Item -ItemType Directory -Path $dataRoot -Force | Out-Null
 
 $releaseInfo = [pscustomobject]@{
-    version = '0.3.1'
+    version = '0.3.2'
     github_repository = ''
 }
 if (Test-Path -LiteralPath $releaseInfoPath) {
@@ -1436,6 +1436,11 @@ $applyMainLocalization = {
     $languageLabel.Text = L 'settings.language_label'
     $languageHint.Text = L 'settings.language_hint'
     $currentVersionLabel.Text = L 'settings.current_version' @([string]$releaseInfo.version)
+    $updateStatusLabel.Text = if ([string]::IsNullOrWhiteSpace([string]$releaseInfo.github_repository)) {
+        L 'settings.update_not_configured'
+    } else {
+        L 'settings.update_ready'
+    }
     $saveButton.Text = L 'common.save'
     $cancelButton.Text = L 'common.cancel'
     $testButton.Text = L 'settings.test'

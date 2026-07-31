@@ -2,13 +2,15 @@
 
 ## Install
 
-1. Download `The-NOexistenceN-of-Lilith-Mod-v0.3.1-win-x64.zip` from Releases and compare its SHA-256 with the published checksum.
+1. Download `The-NOexistenceN-of-Lilith-Mod-v0.3.2-win-x64.zip` from Releases and compare its SHA-256 with the published checksum.
 2. Quit *The NOexistenceN of Lilith* from the tray and wait until Steam no longer shows **Stop**.
 3. Extract every file into the game root. `winhttp.dll`, `Lilith.exe`, `BepInEx`, and `dotnet` should be in that game directory.
 4. Start from Steam. The first IL2CPP cache build can take longer; do not force-close it while loading.
 5. Right-click Lilith or the tray icon and open **Mod Settings**. Choose **Follow game language** or an override under **Other**, then enter an API supplied by your own model provider if you want AI chat.
 
 The package already contains BepInEx, Node.js, and the media bridge. Players do not install or pin Node globally. Mod Settings uses Windows PowerShell 5.1 included with Windows 10/11.
+
+The game checks the latest stable GitHub Release once in the background at startup. No dialog appears when the installed version is current or GitHub is unavailable. A newer version only prompts to open its Release page; nothing is downloaded or replaced automatically.
 
 ## Configure Gemini
 

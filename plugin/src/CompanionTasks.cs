@@ -62,6 +62,29 @@ internal static class CompanionTasks
         return client.GetMediaStateAsync(cancellationToken);
     }
 
+    public static async void CheckForUpdate(
+        CompanionClient client,
+        string currentVersion,
+        CancellationToken cancellationToken,
+        Action<StartupUpdateResult> onSuccess,
+        Action onCompanionUnavailable)
+    {
+        try
+        {
+            StartupUpdateResult result = await client
+                .CheckForUpdateAsync(currentVersion, cancellationToken)
+                .ConfigureAwait(false);
+            onSuccess(result);
+        }
+        catch (OperationCanceledException)
+        {
+        }
+        catch
+        {
+            onCompanionUnavailable();
+        }
+    }
+
     public static async void ResetSession(
         CompanionClient client,
         string sessionId,

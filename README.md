@@ -6,7 +6,7 @@
 生成式 AI 聊天、角色长期记忆、原作剧情检索、本机状态感知和外部音乐联动。
 普通玩家只需配置自己的服务模型，或仅使用音乐同步功能。
 
-> 当前版本：0.3.1 · Windows 10/11 x64
+> 当前版本：0.3.2 · Windows 10/11 x64
 
 ## 主要功能
 
@@ -20,11 +20,11 @@
 - QQ音乐、网易云音乐等播放器冷启动与游戏原生音乐动作联动；排除浏览器视频。
 - 默认关闭的实验性跨屏拖动优化：改善副屏无任务栏时角色踩空，适配上下或错位排列的多屏拖动；需先开启游戏原生“跨屏拖动”。
 - 在 Mod设置中修改游戏内玩家称呼，并无损迁移对应长期记忆。
-- 从 GitHub Releases 检查最新正式版，不在后台自动替换文件。
+- 每次游戏启动在后台检查一次 GitHub 最新正式版；仅在发现更新时询问是否打开 Release，不自动替换文件。
 
 ## 普通玩家安装
 
-1. 在 GitHub Releases 下载 `The-NOexistenceN-of-Lilith-Mod-v0.3.1-win-x64.zip`。
+1. 在 GitHub Releases 下载 `The-NOexistenceN-of-Lilith-Mod-v0.3.2-win-x64.zip`。
 2. 完全退出《不存在的莉莉丝》。
 3. 将 ZIP 内全部内容解压到游戏根目录，使 `winhttp.dll` 与 `Lilith.exe` 同级。
 4. 从 Steam正常启动游戏。首次加载 BepInEx可能比平时慢。
@@ -56,7 +56,7 @@ Google 服务不可直连的网络可填写无认证的 `http://` 或 `https://`
 
 ## 更新与故障排查
 
-- Mod设置中的“检查更新”会查询 GitHub最新正式 Release；网络不可用时不影响其他功能。
+- 游戏启动约 5 秒后会在后台检查一次 GitHub 最新正式 Release；只有发现新版本才询问是否打开下载页。Mod 设置中仍可手动检查，网络不可用时不弹窗且不影响其他功能。
 - 更新前退出游戏，然后用新版本覆盖旧文件；`%APPDATA%\LilithAI` 中的配置和记忆不会被覆盖。
 - BepInEx注入、`winhttp.dll` 或捆绑的 `node.exe` 可能被少数安全软件误报；请先核对 Release提供的 SHA-256。
 - 日志位于游戏目录 `BepInEx/LogOutput.log`，报告问题时请先删除其中可能包含的私人对话或路径。
@@ -81,4 +81,4 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-bundle.ps1
 - BepInEx、Unity基础类库、Node.js、.NET等组件使用各自条款，详见 [第三方组件声明](THIRD-PARTY-NOTICES.md)。
 - 本项目不包含游戏本体，使用者必须通过 Steam合法安装《不存在的莉莉丝》。
 
-macOS适配、设置窗口脱离 PowerShell和自动覆盖更新不属于 0.3.1 范围。
+macOS适配、设置窗口脱离 PowerShell和自动覆盖更新不属于 0.3.2 范围。

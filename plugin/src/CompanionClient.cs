@@ -111,6 +111,37 @@ internal sealed class CompanionClient
             true);
     }
 
+    public async Task<StartupUpdateResult> CheckForUpdateAsync(
+        string currentVersion,
+        CancellationToken cancellationToken)
+    {
+        RuntimeResponse response = await SendRuntimeRequestAsync(
+            HttpMethod.Get,
+            $"/v1/update?current_version={Uri.EscapeDataString(currentVersion)}",
+            null,
+            cancellationToken).ConfigureAwait(false);
+        if (!response.IsSuccessStatusCode)
+        {
+            throw new InvalidOperationException($"Companion HTTP {(int)response.StatusCode}");
+        }
+
+        using JsonDocument document = JsonDocument.Parse(response.Json);
+        JsonElement root = document.RootElement;
+        string status = ReadString(root, "status", "unavailable");
+        string latestVersion = ReadString(root, "latest_version");
+        string releaseUrl = ReadString(root, "release_url");
+        if (status is not ("update_available" or "up_to_date" or "unavailable")
+            || (status == "update_available"
+                && (string.IsNullOrWhiteSpace(latestVersion)
+                    || string.IsNullOrWhiteSpace(releaseUrl))))
+        {
+            status = "unavailable";
+            latestVersion = string.Empty;
+            releaseUrl = string.Empty;
+        }
+        return new StartupUpdateResult(status, latestVersion, releaseUrl);
+    }
+
     public async Task<IReadOnlyList<CompanionHistoryMessage>> GetHistoryAsync(
         string sessionId,
         CancellationToken cancellationToken)
@@ -251,6 +282,8 @@ internal sealed record CompanionReply(
     IReadOnlyList<ChatCitation> Citations);
 
 internal sealed record CompanionHistoryMessage(string Role, string Content);
+
+internal sealed record StartupUpdateResult(string Status, string LatestVersion, string ReleaseUrl);
 
 internal sealed record ExternalMediaState(bool Playing, string Source, string Title, bool Available)
 {

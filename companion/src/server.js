@@ -31,7 +31,11 @@ const LORE_OVERRIDE = process.env.LILITH_LORE_FILE || '';
 const RUNTIME_PATH = path.join(DATA_ROOT, 'runtime.json');
 const SESSIONS_ROOT = path.join(DATA_ROOT, 'sessions');
 const PLAYERS_ROOT = path.join(DATA_ROOT, 'players');
+const RELEASE_INFO_PATH = process.env.LILITH_RELEASE_INFO
+  || path.resolve(__dirname, '..', 'release-info.json');
 const SEARCH_CACHE = new Map();
+const GITHUB_API_ROOT = 'https://api.github.com';
+const UPDATE_TIMEOUT_MS = 12000;
 
 const DEFAULT_CONFIG = {
   listen_host: '127.0.0.1',
@@ -511,19 +515,21 @@ function requestGetJson(target, headers, timeoutMs) {
   return new Promise((resolve, reject) => {
     const url = new URL(target);
     const transport = url.protocol === 'https:' ? https : http;
+    let hardTimeout;
     const request = transport.request({
       protocol: url.protocol,
       hostname: url.hostname,
       port: url.port || undefined,
       path: url.pathname + url.search,
       method: 'GET',
-      headers: { ...headers, Accept: 'application/json' },
+      headers: { Accept: 'application/json', ...headers },
       timeout: timeoutMs
     }, response => {
       let responseBody = '';
       response.setEncoding('utf8');
       response.on('data', chunk => { responseBody += chunk; });
       response.on('end', () => {
+        clearTimeout(hardTimeout);
         let parsed;
         try {
           parsed = responseBody ? JSON.parse(responseBody) : {};
@@ -537,11 +543,132 @@ function requestGetJson(target, headers, timeoutMs) {
         }
         resolve(parsed);
       });
+      response.on('error', error => {
+        clearTimeout(hardTimeout);
+        reject(error);
+      });
     });
     request.on('timeout', () => request.destroy(new Error('search provider timeout')));
-    request.on('error', reject);
+    request.on('error', error => {
+      clearTimeout(hardTimeout);
+      reject(error);
+    });
+    hardTimeout = setTimeout(
+      () => request.destroy(new Error('search provider hard timeout')),
+      Math.max(1000, timeoutMs));
+    hardTimeout.unref();
     request.end();
   });
+}
+
+function parseReleaseVersion(value) {
+  const normalized = String(value || '').trim().replace(/^[vV]/, '').split(/[-+]/, 1)[0];
+  if (!/^\d+(?:\.\d+){0,3}$/.test(normalized)) return null;
+  const parts = normalized.split('.').map(part => Number.parseInt(part, 10));
+  while (parts.length < 3) parts.push(0);
+  return parts.every(part => Number.isSafeInteger(part) && part >= 0 && part <= 2147483647)
+    ? parts
+    : null;
+}
+
+function compareReleaseVersions(left, right) {
+  const width = Math.max(left.length, right.length);
+  for (let index = 0; index < width; index += 1) {
+    const difference = (left[index] || 0) - (right[index] || 0);
+    if (difference !== 0) return difference < 0 ? -1 : 1;
+  }
+  return 0;
+}
+
+function normalizeGithubRepository(value) {
+  const repository = String(value || '').trim().replace(/^\/+|\/+$/g, '');
+  if (!/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(repository)) return '';
+  const segments = repository.split('/');
+  return segments.some(segment => segment === '.' || segment === '..') ? '' : repository;
+}
+
+function trustedGithubReleaseUrl(value, repository) {
+  let parsed;
+  try {
+    parsed = new URL(String(value || ''));
+  } catch (error) {
+    return '';
+  }
+  const prefix = `/${repository}/releases/tag/`.toLowerCase();
+  if (parsed.protocol !== 'https:'
+      || parsed.hostname.toLowerCase() !== 'github.com'
+      || parsed.port
+      || parsed.username
+      || parsed.password
+      || !parsed.pathname.toLowerCase().startsWith(prefix)
+      || parsed.pathname.length <= prefix.length) {
+    return '';
+  }
+  return parsed.toString();
+}
+
+function unavailableUpdate(currentVersion, reason) {
+  return {
+    protocol_version: 1,
+    status: 'unavailable',
+    current_version: String(currentVersion || ''),
+    latest_version: '',
+    release_url: '',
+    reason
+  };
+}
+
+async function checkForUpdate({
+  currentVersion,
+  repository,
+  apiRoot = GITHUB_API_ROOT,
+  timeoutMs = UPDATE_TIMEOUT_MS,
+  request = requestGetJson
+}) {
+  const current = parseReleaseVersion(currentVersion);
+  const normalizedRepository = normalizeGithubRepository(repository);
+  if (!current) return unavailableUpdate(currentVersion, 'invalid_current_version');
+  if (!normalizedRepository) return unavailableUpdate(currentVersion, 'not_configured');
+
+  let target;
+  try {
+    const [owner, name] = normalizedRepository.split('/');
+    target = new URL(
+      `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(name)}/releases/latest`,
+      apiRoot).toString();
+  } catch (error) {
+    return unavailableUpdate(currentVersion, 'invalid_api_root');
+  }
+
+  let latest;
+  try {
+    latest = await request(target, {
+      Accept: 'application/vnd.github+json',
+      'User-Agent': `LilithMod/${String(currentVersion || '').trim()}`,
+      'X-GitHub-Api-Version': '2022-11-28'
+    }, timeoutMs);
+  } catch (error) {
+    return unavailableUpdate(currentVersion, 'upstream_unavailable');
+  }
+
+  const latestTag = String(latest && latest.tag_name || '').trim();
+  const latestVersion = parseReleaseVersion(latestTag);
+  if (!latestVersion) return unavailableUpdate(currentVersion, 'invalid_release_tag');
+  const releaseUrl = trustedGithubReleaseUrl(
+    latest && latest.html_url,
+    normalizedRepository);
+  if (!releaseUrl) return unavailableUpdate(currentVersion, 'invalid_release_url');
+
+  return {
+    protocol_version: 1,
+    status: compareReleaseVersions(latestVersion, current) > 0
+      ? 'update_available'
+      : 'up_to_date',
+    current_version: String(currentVersion || '').trim(),
+    latest_version: latestTag,
+    release_url: releaseUrl,
+    reason: ''
+  };
 }
 
 function shouldSearch(message, webSearch, explicit) {
@@ -1533,6 +1660,39 @@ function createApp(options = {}) {
   let config = loadConfig();
   applyNetworkProxy(config);
   let localizedResources = loadLocalizedResources();
+  const releaseInfo = options.releaseInfo && typeof options.releaseInfo === 'object'
+    ? options.releaseInfo
+    : readJson(RELEASE_INFO_PATH, {});
+  const installedVersion = String(releaseInfo.version || '').trim();
+  const updateApiRoot = String(options.updateApiRoot || GITHUB_API_ROOT);
+  const updateTimeoutMs = Math.max(100, Number(options.updateTimeoutMs) || UPDATE_TIMEOUT_MS);
+  const updateRequest = typeof options.updateRequestGetJson === 'function'
+    ? options.updateRequestGetJson
+    : requestGetJson;
+  let updateResultPromise = null;
+  let cachedUpdateResult = null;
+  const getStartupUpdateResult = currentVersion => {
+    if (cachedUpdateResult) return Promise.resolve(cachedUpdateResult);
+    if (!updateResultPromise) {
+      updateResultPromise = checkForUpdate({
+        currentVersion,
+        repository: releaseInfo.github_repository,
+        apiRoot: updateApiRoot,
+        timeoutMs: updateTimeoutMs,
+        request: updateRequest
+      }).then(result => {
+        cachedUpdateResult = result;
+        if (result.status === 'unavailable') {
+          console.warn(`Startup update check unavailable: ${result.reason || 'unknown'}`);
+        } else {
+          console.log(
+            `Startup update check: ${result.status}; current=${result.current_version}; latest=${result.latest_version}`);
+        }
+        return result;
+      });
+    }
+    return updateResultPromise;
+  };
   const token = crypto.randomBytes(24).toString('hex');
   const mediaMonitor = new MediaMonitor(config);
   const groundingPages = new Map();
@@ -1570,6 +1730,26 @@ function createApp(options = {}) {
       return;
     }
     try {
+      if (req.method === 'GET' && requestUrl.pathname === '/v1/update') {
+        const currentVersion = String(requestUrl.searchParams.get('current_version') || '').trim();
+        const parsedCurrent = parseReleaseVersion(currentVersion);
+        const parsedInstalled = parseReleaseVersion(installedVersion);
+        if (!parsedCurrent
+            || !parsedInstalled
+            || compareReleaseVersions(parsedCurrent, parsedInstalled) !== 0) {
+          sendJson(res, 400, { error: 'invalid current_version' });
+          return;
+        }
+        const update = await getStartupUpdateResult(currentVersion);
+        sendJson(res, 200, {
+          protocol_version: update.protocol_version,
+          status: update.status,
+          current_version: update.current_version,
+          latest_version: update.latest_version,
+          release_url: update.release_url
+        });
+        return;
+      }
       if (req.method === 'GET' && requestUrl.pathname === '/v1/media') {
         sendJson(res, 200, mediaMonitor.state);
         return;
@@ -1857,6 +2037,8 @@ module.exports = {
   buildGroundingHtml,
   buildSystemPrompt,
   buildSearchQuery,
+  checkForUpdate,
+  compareReleaseVersions,
   createApp,
   createLocalContextSnapshot,
   localContextPrompt,
@@ -1871,7 +2053,9 @@ module.exports = {
   normalizeResponse,
   normalizeProxyUrl,
   parseModelEnvelope,
+  parseReleaseVersion,
   proxyEnvironment,
+  requestGetJson,
   replyMatchesLocale,
   retrieveLore,
   stripParentheticalActions
