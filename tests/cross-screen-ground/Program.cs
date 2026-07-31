@@ -35,6 +35,36 @@ Equal(1, CrossScreenGroundGeometry.FindMonitor(verticalWithGap, 800, 900), "lowe
 Equal(0, CrossScreenGroundGeometry.FindMonitor(verticalWithGap, 800, 120), "nearest monitor across gap");
 Equal(1, CrossScreenGroundGeometry.FindMonitor(verticalWithGap, 800, 300), "nearest lower monitor across gap");
 
+var verticallyStacked = new[]
+{
+    new DesktopMonitorArea(
+        new DesktopBounds(0, 0, 3840, 2160),
+        new DesktopBounds(0, 0, 3840, 2160),
+        true),
+    new DesktopMonitorArea(
+        new DesktopBounds(1023, 2160, 3583, 3760),
+        new DesktopBounds(1023, 2160, 3583, 3760),
+        false)
+};
+
+Equal(1, CrossScreenGroundGeometry.SelectReleaseMonitor(verticallyStacked, 1800, 2300), "lower release target");
+if (!CrossScreenGroundGeometry.IsReleaseLockActive(1, 10f, 10.75f)
+    || CrossScreenGroundGeometry.IsReleaseLockActive(1, 10.75f, 10.75f)
+    || CrossScreenGroundGeometry.IsReleaseLockActive(-1, 10f, 10.75f))
+{
+    throw new InvalidOperationException("Release monitor lock timing is inconsistent.");
+}
+
+if (!CrossScreenGroundGeometry.IsSegmentedGroundLayoutValid(3, 5)
+    || CrossScreenGroundGeometry.IsSegmentedGroundLayoutValid(0, 5)
+    || CrossScreenGroundGeometry.IsSegmentedGroundLayoutValid(6, 5)
+    || CrossScreenGroundGeometry.ShouldEnableSegmentedGroundCollider(0, 3, dragging: true)
+    || CrossScreenGroundGeometry.ShouldEnableSegmentedGroundCollider(1, 3, dragging: false)
+    || !CrossScreenGroundGeometry.ShouldEnableSegmentedGroundCollider(0, 3, dragging: false))
+{
+    throw new InvalidOperationException("Segmented ground collider policy is inconsistent.");
+}
+
 UnityScreenPoint topLeft = CrossScreenGroundGeometry.ClientToUnityScreen(0, 0, 3000, 3000, 3000, 3000);
 Near(0f, topLeft.X, "client left");
 Near(3000f, topLeft.Y, "Unity top");

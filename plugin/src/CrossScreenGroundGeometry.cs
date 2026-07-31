@@ -39,6 +39,23 @@ internal readonly record struct UnityScreenPoint(float X, float Y);
 
 internal static class CrossScreenGroundGeometry
 {
+    public static int SelectReleaseMonitor(
+        IReadOnlyList<DesktopMonitorArea> monitors,
+        int desktopX,
+        int desktopY) => FindMonitor(monitors, desktopX, desktopY);
+
+    public static bool IsReleaseLockActive(int targetMonitorIndex, float now, float lockUntil) =>
+        targetMonitorIndex >= 0 && now < lockUntil;
+
+    public static bool IsSegmentedGroundLayoutValid(int groundColliderCount, int totalColliderCount) =>
+        groundColliderCount > 0 && groundColliderCount <= totalColliderCount;
+
+    public static bool ShouldEnableSegmentedGroundCollider(
+        int colliderIndex,
+        int groundColliderCount,
+        bool dragging) =>
+        colliderIndex >= groundColliderCount || (!dragging && colliderIndex == 0);
+
     public static int FindMonitor(
         IReadOnlyList<DesktopMonitorArea> monitors,
         int desktopX,

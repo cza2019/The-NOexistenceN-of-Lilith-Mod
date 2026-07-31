@@ -2,7 +2,7 @@
 
 ## Install
 
-1. Download `The-NOexistenceN-of-Lilith-Mod-v0.3.2-win-x64.zip` from Releases and compare its SHA-256 with the published checksum.
+1. Download `The-NOexistenceN-of-Lilith-Mod-v0.3.3-win-x64.zip` from Releases and compare its SHA-256 with the published checksum.
 2. Quit *The NOexistenceN of Lilith* from the tray and wait until Steam no longer shows **Stop**.
 3. Extract every file into the game root. `winhttp.dll`, `Lilith.exe`, `BepInEx`, and `dotnet` should be in that game directory.
 4. Start from Steam. The first IL2CPP cache build can take longer; do not force-close it while loading.

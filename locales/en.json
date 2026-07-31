@@ -93,7 +93,7 @@
     "settings.chat_scale": "Chat window scale (50%–200%)",
     "settings.chat_scale_hint": "The window first scales for screen resolution; this multiplier is applied on top.",
     "settings.cross_screen": "Improve multi-monitor dragging (experimental)",
-    "settings.cross_screen_hint": "Enable Cross-screen Dragging under the game's Settings → Controls first. This option only corrects floor height on each monitor.",
+    "settings.cross_screen_hint": "Enable Cross-screen Dragging under the game's Settings → Controls first. While dragging, this option temporarily handles native ground segments and restores the target monitor floor on release.",
     "settings.memory_group": "Lilith's memories of the player",
     "settings.memory_intro": "View or edit locally stored long-term player memories. This does not change the character definition or current chat.",
     "settings.memory_edit": "Edit Lilith's memories of the player",

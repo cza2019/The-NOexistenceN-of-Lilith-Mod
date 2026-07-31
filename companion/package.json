@@ -1,6 +1,6 @@
 {
   "name": "lilith-companion",
-  "version": "0.3.2",
+  "version": "0.3.3",
   "private": true,
   "description": "Local, AstrBot-free companion service for the Lilith mod",
   "main": "src/server.js",

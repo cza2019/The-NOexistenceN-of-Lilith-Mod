@@ -464,9 +464,14 @@ internal static class UserInterfacePatches
         options.Add(ModLocalization.T("menu.chat"));
         options.Add(ModLocalization.T("menu.listen_music"));
         _chatSelection ??= (System.Action<int>)OnChatSelected;
-        handler._playerLineController.ShowOptions(
+        bool shown = PlayerLineOptionsCompat.TryShow(
+            handler._playerLineController,
             options.Cast<Il2CppSystem.Collections.Generic.IReadOnlyList<string>>(),
             _chatSelection);
+        if (!shown)
+        {
+            return;
+        }
         _lastMenuFrame = Time.frameCount;
         LilithModPlugin.PluginLog.LogInfo("Character right-click chat option shown");
     }
@@ -779,7 +784,8 @@ internal static class UserInterfacePatches
             var options = new Il2CppSystem.Collections.Generic.List<string>();
             options.Add(ModLocalization.T("menu.preferred_music"));
             options.Add(ModLocalization.T("menu.local_music"));
-            __instance.ShowOptions(
+            PlayerLineOptionsCompat.TryShow(
+                __instance,
                 options.Cast<Il2CppSystem.Collections.Generic.IReadOnlyList<string>>(),
                 _selection);
             return false;

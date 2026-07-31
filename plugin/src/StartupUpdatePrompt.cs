@@ -18,7 +18,8 @@ internal static class StartupUpdatePrompt
     internal static void Show(string latestVersion, string releaseUrl)
     {
         if (!OperatingSystem.IsWindows()
-            || !UpdateReleaseUrl.TryParse(releaseUrl, out Uri? trustedRelease))
+            || !UpdateReleaseUrl.TryParse(releaseUrl, out Uri? trustedRelease)
+            || trustedRelease is null)
         {
             LilithModPlugin.PluginLog.LogWarning(
                 "Startup update prompt ignored an invalid GitHub Release URL");

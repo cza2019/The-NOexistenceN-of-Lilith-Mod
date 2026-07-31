@@ -93,7 +93,7 @@
     "settings.chat_scale": "聊天窗口缩放（50%–200%）",
     "settings.chat_scale_hint": "聊天窗口会先按屏幕分辨率自动适配；此倍率在自动结果上额外叠加。",
     "settings.cross_screen": "优化跨屏拖动（实验性）",
-    "settings.cross_screen_hint": "请先在游戏设置→控制中开启“跨屏拖动”，否则无法拖到其他屏幕；本项只优化各屏触底高度。",
+    "settings.cross_screen_hint": "请先在游戏设置→控制中开启“跨屏拖动”。本项会在拖动时临时处理原生地面分段，并在松手后恢复目标屏的落地位置。",
     "settings.memory_group": "莉莉丝对玩家的记忆",
     "settings.memory_intro": "手动查看或调整本机保存的玩家长期记忆；不会修改角色设定和当前会话。",
     "settings.memory_edit": "手动调整莉莉丝对玩家的记忆",

@@ -8,7 +8,7 @@
 
 `The NOexistenceN of Lilith Mod` 為 Steam 桌寵遊戲《不存在的莉莉絲》加入生成式 AI 對話、玩家長期記憶、原作劇情檢索、本機狀態感知與外部音樂同步。一般玩家只需設定自己的模型服務，或只使用音樂同步功能。
 
-> 目前版本：0.3.2 · Windows 10/11 x64
+> 目前版本：0.3.3 · Windows 10/11 x64
 
 ## 主要功能
 
@@ -23,7 +23,7 @@
 
 ## 安裝
 
-1. 從 GitHub Releases 下載 `The-NOexistenceN-of-Lilith-Mod-v0.3.2-win-x64.zip`。
+1. 從 GitHub Releases 下載 `The-NOexistenceN-of-Lilith-Mod-v0.3.3-win-x64.zip`。
 2. 完全結束《不存在的莉莉絲》。
 3. 將 ZIP 內所有內容解壓到遊戲根目錄，讓 `winhttp.dll` 與 `Lilith.exe` 位於同一層。
 4. 從 Steam 啟動遊戲；首次載入 BepInEx 可能較慢。
