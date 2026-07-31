@@ -2,6 +2,10 @@
 
 [简体中文](README.md) · [繁體中文](README.zh-TW.md) · [English](README.en.md) · [日本語](README.ja.md)
 
+<p align="center">
+  <img src="docs/images/show.gif" alt="The NOexistenceN of Lilith Mod demonstration">
+</p>
+
 This Mod adds generative-AI conversation, long-term player memory, local lore retrieval, relevant PC context, and external-music synchronisation to the Steam desktop pet *The NOexistenceN of Lilith*. Players only need to configure their own model provider, or may use the music features without AI.
 
 > Current version: 0.3.2 · Windows 10/11 x64

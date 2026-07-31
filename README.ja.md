@@ -2,6 +2,10 @@
 
 [简体中文](README.md) · [繁體中文](README.zh-TW.md) · [English](README.en.md) · [日本語](README.ja.md)
 
+<p align="center">
+  <img src="docs/images/show.gif" alt="The NOexistenceN of Lilith Mod のデモ">
+</p>
+
 Steamのデスクトップペット『The NOexistenceN of Lilith』に、生成AIとの会話、プレイヤーの長期記憶、原作知識のローカル検索、関連するPC状態、外部音楽との連動を追加します。プレイヤーは自分のモデルサービスを設定するか、AIを設定せず音楽同期だけを利用できます。
 
 > 現在のバージョン：0.3.2 · Windows 10/11 x64

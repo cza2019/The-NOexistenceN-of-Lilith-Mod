@@ -2,6 +2,10 @@
 
 [简体中文](README.md) · [繁體中文](README.zh-TW.md) · [English](README.en.md) · [日本語](README.ja.md)
 
+<p align="center">
+  <img src="docs/images/show.gif" alt="《不存在的莉莉丝》Mod 功能演示">
+</p>
+
 `The NOexistenceN of Lilith Mod` 为 Steam 桌宠游戏《不存在的莉莉丝》增加
 生成式 AI 聊天、角色长期记忆、原作剧情检索、本机状态感知和外部音乐联动。
 普通玩家只需配置自己的服务模型，或仅使用音乐同步功能。

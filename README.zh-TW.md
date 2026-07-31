@@ -2,6 +2,10 @@
 
 [简体中文](README.md) · [繁體中文](README.zh-TW.md) · [English](README.en.md) · [日本語](README.ja.md)
 
+<p align="center">
+  <img src="docs/images/show.gif" alt="《不存在的莉莉絲》Mod 功能展示">
+</p>
+
 `The NOexistenceN of Lilith Mod` 為 Steam 桌寵遊戲《不存在的莉莉絲》加入生成式 AI 對話、玩家長期記憶、原作劇情檢索、本機狀態感知與外部音樂同步。一般玩家只需設定自己的模型服務，或只使用音樂同步功能。
 
 > 目前版本：0.3.2 · Windows 10/11 x64
