@@ -34,3 +34,9 @@ jobs:
       - name: Release metadata tests
         shell: powershell
         run: .\tests\release-metadata.ps1
+      - name: Provider settings tests
+        shell: powershell
+        run: .\tests\provider-settings.ps1
+      - name: Four-language settings startup smoke
+        shell: powershell
+        run: .\tests\configure-startup.ps1

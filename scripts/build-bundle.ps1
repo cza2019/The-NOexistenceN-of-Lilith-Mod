@@ -141,7 +141,7 @@ New-Item -ItemType Directory -Path $companionSourceOutput,$companionAssetsOutput
 foreach ($file in @('config.example.json', 'configure.ps1', 'release-info.json')) {
     Copy-Item -LiteralPath (Join-Path $repo "companion\$file") -Destination $companionOutput
 }
-foreach ($file in @('localization.js', 'lore.js', 'server.js')) {
+foreach ($file in @('localization.js', 'lore.js', 'provider-request.js', 'provider-test.js', 'network.js', 'server.js')) {
     Copy-Item -LiteralPath (Join-Path $repo "companion\src\$file") -Destination $companionSourceOutput
 }
 Copy-Item -LiteralPath (Join-Path $repo 'companion\assets\wechat-reward-code.png') -Destination $companionAssetsOutput

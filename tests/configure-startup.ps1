@@ -30,19 +30,25 @@ try {
     $config.PSObject.Properties.Remove('network')
     $config.web_search.enabled = $true
     $config.web_search.backend = 'provider'
-    [IO.File]::WriteAllText(
-        (Join-Path $dataRoot 'config.json'),
-        (($config | ConvertTo-Json -Depth 10) + [Environment]::NewLine),
-        (New-Object Text.UTF8Encoding($false)))
     $env:APPDATA = $temporaryAppData
     $env:LILITH_CONFIGURE_STARTUP_SMOKE = '1'
-    & powershell.exe `
-        -NoProfile `
-        -STA `
-        -ExecutionPolicy Bypass `
-        -File $configureScript
-    if ($LASTEXITCODE -ne 0) {
-        throw "configure.ps1 startup smoke test failed with exit code $LASTEXITCODE."
+    foreach ($locale in @('zh-CN', 'zh-TW', 'en', 'ja')) {
+        $config.ui.language_mode = $locale
+        # The first locale exercises an old config with no network object;
+        # later locales verify that a saved disabled switch remains disabled.
+        if ($locale -ne 'zh-CN') {
+            $config | Add-Member -NotePropertyName network -NotePropertyValue ([pscustomobject]@{
+                proxy_url = ''; provider_dns_servers = @(); provider_dns_fallback_enabled = $false
+            }) -Force
+        }
+        [IO.File]::WriteAllText(
+            (Join-Path $dataRoot 'config.json'),
+            (($config | ConvertTo-Json -Depth 10) + [Environment]::NewLine),
+            (New-Object Text.UTF8Encoding($false)))
+        & powershell.exe -NoProfile -STA -ExecutionPolicy Bypass -File $configureScript
+        if ($LASTEXITCODE -ne 0) {
+            throw "configure.ps1 startup smoke failed for $locale with exit code $LASTEXITCODE."
+        }
     }
 } finally {
     $env:LILITH_CONFIGURE_STARTUP_SMOKE = $previousSmokeValue

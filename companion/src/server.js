@@ -8,6 +8,8 @@ const https = require('https');
 const os = require('os');
 const path = require('path');
 const { URL } = require('url');
+const { createProviderRequester, providerErrorCode, clearProviderDnsCache } = require('./provider-request');
+const { normalizeProxyUrl, proxyEnvironment, applyNetworkProxy } = require('./network');
 const {
   formatLorePrompt,
   loadLore,
@@ -58,7 +60,9 @@ const DEFAULT_CONFIG = {
     max_tokens: 500
   },
   network: {
-    proxy_url: ''
+    proxy_url: '',
+    provider_dns_servers: [],
+    provider_dns_fallback_enabled: true
   },
   media: {
     enabled: true,
@@ -404,110 +408,6 @@ function parseBody(req) {
       }
     });
     req.on('error', reject);
-  });
-}
-
-function normalizeProxyUrl(value) {
-  const text = String(value || '').trim();
-  if (!text) return '';
-  let parsed;
-  try {
-    parsed = new URL(text);
-  } catch (error) {
-    throw new Error('proxy_url must be an http:// or https:// URL');
-  }
-  if (!['http:', 'https:'].includes(parsed.protocol) || parsed.username || parsed.password) {
-    throw new Error('proxy_url must be an unauthenticated http:// or https:// URL');
-  }
-  return parsed.toString();
-}
-
-function proxyEnvironment(network = {}) {
-  const explicit = normalizeProxyUrl(network.proxy_url);
-  const inherited = process.env.HTTPS_PROXY || process.env.https_proxy
-    || process.env.HTTP_PROXY || process.env.http_proxy || '';
-  let selected = '';
-  try {
-    selected = explicit || normalizeProxyUrl(inherited);
-  } catch (error) {
-    if (explicit) throw error;
-  }
-  const existingNoProxy = process.env.NO_PROXY || process.env.no_proxy || '';
-  const noProxy = [...new Set([
-    'localhost',
-    '127.0.0.1',
-    '::1',
-    ...existingNoProxy.split(',').map(item => item.trim()).filter(Boolean)
-  ])].join(',');
-  return {
-    ...process.env,
-    HTTP_PROXY: selected,
-    HTTPS_PROXY: selected,
-    NO_PROXY: noProxy,
-    http_proxy: selected,
-    https_proxy: selected,
-    no_proxy: noProxy
-  };
-}
-
-function applyNetworkProxy(config) {
-  if (typeof http.setGlobalProxyFromEnv !== 'function') return;
-  http.setGlobalProxyFromEnv(proxyEnvironment(config && config.network));
-}
-
-function requestJson(target, payload, headers, timeoutMs) {
-  return new Promise((resolve, reject) => {
-    const url = new URL(target);
-    const transport = url.protocol === 'https:' ? https : http;
-    const body = JSON.stringify(payload);
-    let hardTimeout;
-    const request = transport.request({
-      protocol: url.protocol,
-      hostname: url.hostname,
-      port: url.port || undefined,
-      path: url.pathname + url.search,
-      method: 'POST',
-      headers: {
-        ...headers,
-        'Content-Type': 'application/json',
-        'Content-Length': Buffer.byteLength(body)
-      },
-      timeout: timeoutMs
-    }, response => {
-      let responseBody = '';
-      response.setEncoding('utf8');
-      response.on('data', chunk => { responseBody += chunk; });
-      response.on('end', () => {
-        clearTimeout(hardTimeout);
-        let parsed;
-        try {
-          parsed = responseBody ? JSON.parse(responseBody) : {};
-        } catch (error) {
-          reject(new Error('provider returned non-JSON data'));
-          return;
-        }
-        if (response.statusCode < 200 || response.statusCode >= 300) {
-          reject(new Error(`provider HTTP ${response.statusCode}`));
-          return;
-        }
-        resolve(parsed);
-      });
-      response.on('error', error => {
-        clearTimeout(hardTimeout);
-        reject(error);
-      });
-    });
-    request.on('timeout', () => request.destroy(new Error('provider timeout')));
-    request.on('error', error => {
-      clearTimeout(hardTimeout);
-      reject(error);
-    });
-    hardTimeout = setTimeout(
-      () => request.destroy(new Error('provider hard timeout')),
-      Math.max(1000, timeoutMs));
-    hardTimeout.unref();
-    request.write(body);
-    request.end();
   });
 }
 
@@ -1411,11 +1311,11 @@ async function generateReply(
     requestHeaders = { Authorization: `Bearer ${config.provider.api_key}` };
   }
   try {
-    let providerResponse = await requestJson(
+    const requestProvider = createProviderRequester(config.provider.timeout_ms, config.network);
+    let providerResponse = await requestProvider(
       endpoint,
       payload,
-      requestHeaders,
-      Math.max(1000, Number(config.provider.timeout_ms) || 30000));
+      requestHeaders);
     const firstProviderResponse = providerResponse;
     let rawText = extractProviderText(providerResponse);
     let envelope = parseModelEnvelope(rawText);
@@ -1447,11 +1347,10 @@ async function generateReply(
         ];
         delete retryPayload.enable_search;
       }
-      providerResponse = await requestJson(
+      providerResponse = await requestProvider(
         endpoint,
         retryPayload,
-        requestHeaders,
-        Math.max(1000, Number(config.provider.timeout_ms) || 30000));
+        requestHeaders);
       rawText = extractProviderText(providerResponse);
       envelope = parseModelEnvelope(rawText);
       if (!replyMatchesLocale(envelope.text || rawText, normalizedLocale)) {
@@ -1496,6 +1395,7 @@ async function generateReply(
       } : undefined
     };
   } catch (error) {
+    console.warn(`Provider reply failed: code=${providerErrorCode(error)}; using localized fallback.`);
     return fallbackResponse(playerName, 'provider_error', maxChars, normalizedLocale);
   }
 }
@@ -1915,6 +1815,7 @@ function createApp(options = {}) {
         if (action === 'reload') {
           config = loadConfig();
           applyNetworkProxy(config);
+          clearProviderDnsCache();
           clearCatalogCache();
           localizedResources = loadLocalizedResources();
           mediaMonitor.config = config;

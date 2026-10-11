@@ -85,6 +85,8 @@
     "settings.reply_limit": "单次回复 Unicode 字符上限",
     "settings.reply_limit_hint": "模型会在限制内组织完整回复。",
     "settings.parenthetical": "用括号内容模拟角色表情/动作（DeepSeek 模型喜欢用括号返回角色表情或动作）",
+    "settings.dns_fallback": "连接失败时自动尝试备用 DNS",
+    "settings.dns_fallback_hint": "直连官方接口的 TLS 建连失败时，使用阿里 DNS 重试一次；成功后优先使用 10 分钟。代理连接沿用代理设置。",
     "settings.proxy_url": "可选 HTTP/HTTPS 代理（不支持认证）",
     "settings.proxy_hint": "优先级：此处配置、HTTPS_PROXY/HTTP_PROXY 环境变量、直连。localhost 和 127.0.0.1 始终绕过代理。",
     "settings.gemini_notice": "Gemini 使用 store=false，Google 不托管聊天链。免费配额的输入输出可能用于改进服务；Google Search grounding 相关数据仍按条款保留 30 天，模型实际执行的每条查询可能计费。测试连接不会调用搜索。",

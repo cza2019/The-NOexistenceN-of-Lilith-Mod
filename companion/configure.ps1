@@ -58,7 +58,7 @@ $releaseInfoPath = Join-Path $PSScriptRoot 'release-info.json'
 New-Item -ItemType Directory -Path $dataRoot -Force | Out-Null
 
 $releaseInfo = [pscustomobject]@{
-    version = '0.3.3'
+    version = '0.3.4'
     github_repository = ''
 }
 if (Test-Path -LiteralPath $releaseInfoPath) {
@@ -147,6 +147,12 @@ if ($null -eq $config.network) {
     Set-JsonProperty $config 'network' ([pscustomobject]@{ proxy_url = '' })
 } elseif ($null -eq $config.network.PSObject.Properties['proxy_url']) {
     Set-JsonProperty $config.network 'proxy_url' ''
+}
+if ($null -eq $config.network.PSObject.Properties['provider_dns_servers']) {
+    Set-JsonProperty $config.network 'provider_dns_servers' @()
+}
+if ($null -eq $config.network.PSObject.Properties['provider_dns_fallback_enabled']) {
+    Set-JsonProperty $config.network 'provider_dns_fallback_enabled' $true
 }
 if ($null -eq $config.conversation) {
     Set-JsonProperty $config 'conversation' ([pscustomobject]@{
@@ -487,8 +493,8 @@ if ($providerKind -notin @('custom', 'volcengine', 'deepseek', 'kimi', 'qwen', '
 
 function New-ProviderProfile([string] $Kind) {
     $values = switch ($Kind) {
-        'volcengine' { @{ base_url = 'https://ark.cn-beijing.volces.com/api/v3'; model = 'deepseek-v4-flash-260425'; wire_api = 'responses'; thinking_mode = 'disabled' } }
-        'deepseek' { @{ base_url = 'https://api.deepseek.com'; model = 'deepseek-v4-flash'; wire_api = 'chat_completions'; thinking_mode = 'disabled' } }
+        'volcengine' { @{ base_url = 'https://ark.cn-beijing.volces.com/api/v3'; model = 'deepseek-v4-1-flash-260910'; wire_api = 'responses'; thinking_mode = 'disabled' } }
+        'deepseek' { @{ base_url = 'https://api.deepseek.com'; model = 'deepseek-flash'; wire_api = 'chat_completions'; thinking_mode = 'disabled' } }
         'kimi' { @{ base_url = 'https://api.moonshot.cn/v1'; model = 'kimi-k3'; wire_api = 'chat_completions'; thinking_mode = 'disabled' } }
         'qwen' { @{ base_url = 'https://dashscope.aliyuncs.com/compatible-mode/v1'; model = 'qwen3.5-flash'; wire_api = 'chat_completions'; thinking_mode = 'disabled' } }
         'glm' { @{ base_url = 'https://open.bigmodel.cn/api/paas/v4'; model = 'glm-4.7-flash'; wire_api = 'chat_completions'; thinking_mode = 'disabled' } }
@@ -533,9 +539,9 @@ foreach ($kind in @('custom', 'volcengine', 'deepseek', 'kimi', 'qwen', 'glm', '
     }
     if ($kind -eq 'volcengine') {
         if ([string]$profile.model -eq 'deepseek-v4-flash') {
-            Set-JsonProperty $profile 'model' 'deepseek-v4-flash-260425'
+            Set-JsonProperty $profile 'model' 'deepseek-v4-flash-ga-260731'
         } elseif ([string]$profile.model -eq 'deepseek-v4-pro') {
-            Set-JsonProperty $profile 'model' 'deepseek-v4-pro-260425'
+            Set-JsonProperty $profile 'model' 'deepseek-v4-pro-ga-260813'
         }
     }
     $profiles[$kind] = $profile
@@ -647,10 +653,10 @@ function Set-ModelChoices {
 
 switch ($providerKind) {
     'volcengine' {
-        Set-ModelChoices @('deepseek-v4-flash-260425', 'deepseek-v4-pro-260425', 'doubao-seed-character-260628', 'doubao-seed-2-1-turbo-260628', 'doubao-seed-2-1-pro-260628', 'doubao-seed-2-0-lite-260428') ([string]$provider.model)
+        Set-ModelChoices @('deepseek-v4-1-flash-260910', 'deepseek-v4-flash-ga-260731', 'deepseek-v4-pro-ga-260813', 'doubao-seed-character-260628', 'doubao-seed-2-1-turbo-260628', 'doubao-seed-2-1-pro-260628', 'doubao-seed-2-0-lite-260428') ([string]$provider.model)
     }
     'deepseek' {
-        Set-ModelChoices @('deepseek-v4-flash', 'deepseek-v4-pro') ([string]$provider.model)
+        Set-ModelChoices @('deepseek-flash', 'deepseek-v4-pro') ([string]$provider.model)
     }
     'kimi' {
         Set-ModelChoices @('kimi-k3', 'kimi-k2.6') ([string]$provider.model)
@@ -787,13 +793,25 @@ $proxyHint.Size = New-Object System.Drawing.Size(550, 40)
 $proxyHint.Text = L 'settings.proxy_hint'
 $apiPage.Controls.Add($proxyHint)
 
+$dnsFallback = New-Object System.Windows.Forms.CheckBox
+$dnsFallback.Location = New-Object System.Drawing.Point(20, 651)
+$dnsFallback.Size = New-Object System.Drawing.Size(550, 40)
+$dnsFallback.Text = L 'settings.dns_fallback'
+$dnsFallback.Checked = [bool]$network.provider_dns_fallback_enabled
+$apiPage.Controls.Add($dnsFallback)
+$dnsFallbackHint = New-Object System.Windows.Forms.Label
+$dnsFallbackHint.Location = New-Object System.Drawing.Point(20, 696)
+$dnsFallbackHint.Size = New-Object System.Drawing.Size(550, 55)
+$dnsFallbackHint.Text = L 'settings.dns_fallback_hint'
+$apiPage.Controls.Add($dnsFallbackHint)
+
 $geminiNotice = New-Object System.Windows.Forms.Label
-$geminiNotice.Location = New-Object System.Drawing.Point(20, 651)
+$geminiNotice.Location = New-Object System.Drawing.Point(20, 759)
 $geminiNotice.Size = New-Object System.Drawing.Size(550, 66)
 $geminiNotice.Text = L 'settings.gemini_notice'
 $geminiNotice.ForeColor = [Drawing.Color]::DarkRed
 $apiPage.Controls.Add($geminiNotice)
-$apiPage.AutoScrollMinSize = New-Object System.Drawing.Size(0, 730)
+$apiPage.AutoScrollMinSize = New-Object System.Drawing.Size(0, 838)
 
 $musicIntro = New-Object System.Windows.Forms.Label
 $languageLabel = New-Object System.Windows.Forms.Label
@@ -1446,6 +1464,8 @@ $applyMainLocalization = {
     $testButton.Text = L 'settings.test'
     $proxyLabel.Text = L 'settings.proxy_url'
     $proxyHint.Text = L 'settings.proxy_hint'
+    $dnsFallback.Text = L 'settings.dns_fallback'
+    $dnsFallbackHint.Text = L 'settings.dns_fallback_hint'
     $geminiNotice.Text = L 'settings.gemini_notice'
     Refresh-SearchControls
     } finally {
@@ -1489,6 +1509,53 @@ function ConvertTo-ReleaseVersion([string] $Value) {
         return [Version]($parts -join '.')
     } catch {
         return $null
+    }
+}
+
+function Invoke-LilithProviderTest([hashtable] $InputData, [string] $RuntimeRoot = $PSScriptRoot) {
+    $nodePath = Join-Path $RuntimeRoot 'node.exe'
+    if (-not (Test-Path -LiteralPath $nodePath)) {
+        $nodePath = $env:LILITH_NODE_PATH
+        if ([string]::IsNullOrWhiteSpace($nodePath)) {
+            $command = Get-Command node -ErrorAction SilentlyContinue
+            if ($null -ne $command) { $nodePath = $command.Source }
+        }
+    }
+    if ([string]::IsNullOrWhiteSpace($nodePath) -or -not (Test-Path -LiteralPath $nodePath)) {
+        throw 'Bundled Node runtime not found.'
+    }
+    $startInfo = New-Object Diagnostics.ProcessStartInfo
+    $startInfo.FileName = $nodePath
+    $startInfo.Arguments = '"' + (Join-Path $RuntimeRoot 'src\provider-test.js') + '"'
+    $startInfo.UseShellExecute = $false
+    $startInfo.CreateNoWindow = $true
+    $startInfo.RedirectStandardInput = $true
+    $startInfo.RedirectStandardOutput = $true
+    $startInfo.RedirectStandardError = $true
+    $startInfo.StandardOutputEncoding = New-Object Text.UTF8Encoding($false)
+    $startInfo.StandardErrorEncoding = New-Object Text.UTF8Encoding($false)
+    $process = New-Object Diagnostics.Process
+    $process.StartInfo = $startInfo
+    try {
+        [void]$process.Start()
+        $outputTask = $process.StandardOutput.ReadToEndAsync()
+        $errorTask = $process.StandardError.ReadToEndAsync()
+        $inputBytes = [Text.Encoding]::UTF8.GetBytes(($InputData | ConvertTo-Json -Depth 12 -Compress))
+        $process.StandardInput.BaseStream.Write($inputBytes, 0, $inputBytes.Length)
+        $process.StandardInput.Close()
+        $timeout = [Math]::Max(1000, [int]$InputData.timeout_ms) + 5000
+        if (-not $process.WaitForExit($timeout)) {
+            $process.Kill()
+            throw 'PROVIDER_TIMEOUT'
+        }
+        $result = $outputTask.GetAwaiter().GetResult() | ConvertFrom-Json
+        [void]$errorTask.GetAwaiter().GetResult()
+        if (-not $result.ok) {
+            throw "$($result.code) (HTTP $($result.http_status))"
+        }
+        return $result.response
+    } finally {
+        $process.Dispose()
     }
 }
 
@@ -1698,8 +1765,8 @@ function Get-SelectedProviderKind {
 
 function Set-ProfileModelChoices([string] $Kind, [string] $Selected) {
     switch ($Kind) {
-        'volcengine' { Set-ModelChoices @('deepseek-v4-flash-260425', 'deepseek-v4-pro-260425', 'doubao-seed-character-260628', 'doubao-seed-2-1-turbo-260628', 'doubao-seed-2-1-pro-260628', 'doubao-seed-2-0-lite-260428') $Selected }
-        'deepseek' { Set-ModelChoices @('deepseek-v4-flash', 'deepseek-v4-pro') $Selected }
+        'volcengine' { Set-ModelChoices @('deepseek-v4-1-flash-260910', 'deepseek-v4-flash-ga-260731', 'deepseek-v4-pro-ga-260813', 'doubao-seed-character-260628', 'doubao-seed-2-1-turbo-260628', 'doubao-seed-2-1-pro-260628', 'doubao-seed-2-0-lite-260428') $Selected }
+        'deepseek' { Set-ModelChoices @('deepseek-flash', 'deepseek-v4-pro') $Selected }
         'kimi' { Set-ModelChoices @('kimi-k3', 'kimi-k2.6') $Selected }
         'qwen' { Set-ModelChoices @('qwen3.5-flash', 'qwen3.6-flash', 'qwen3.7-plus') $Selected }
         'glm' { Set-ModelChoices @('glm-4.7-flash', 'glm-4.7-flashx', 'glm-5.2') $Selected }
@@ -1885,19 +1952,17 @@ $testButton.Add_Click({
         } else {
             @{ Authorization = "Bearer $testKey" }
         }
-        $body = $payload | ConvertTo-Json -Depth 6 -Compress
-        $testTimeout = if ($testBuiltInSearch) { 45 } else { 20 }
-        $testUri = [Uri]$endpoint
-        $testArguments = @{
-            Uri = $testUri
-            Method = 'Post'
-            Headers = $headers
-            ContentType = 'application/json; charset=utf-8'
-            Body = [Text.Encoding]::UTF8.GetBytes($body)
-            TimeoutSec = $testTimeout
+        $testResult = Invoke-LilithProviderTest @{
+            target = $endpoint
+            payload = $payload
+            headers = $headers
+            timeout_ms = [int]$provider.timeout_ms
+            network = @{
+                proxy_url = $proxyUrl.Text.Trim()
+                provider_dns_servers = @($network.provider_dns_servers)
+                provider_dns_fallback_enabled = [bool]$dnsFallback.Checked
+            }
         }
-        Add-LilithProxyArgument $testArguments $testUri
-        $testResult = Invoke-RestMethod @testArguments
         if ($testBuiltInSearch -and $isResponses) {
             $searchUsed = @($testResult.output | Where-Object { $_.type -eq 'web_search_call' }).Count -gt 0
             if (-not $searchUsed) {
@@ -2006,6 +2071,7 @@ $saveButton.Add_Click({
             $newProxyUrl = $parsedProxyUri.AbsoluteUri.TrimEnd('/')
         }
         Set-JsonProperty $network 'proxy_url' $newProxyUrl
+        Set-JsonProperty $network 'provider_dns_fallback_enabled' ([bool]$dnsFallback.Checked)
         $selectedLanguageMode = switch ($languageMode.SelectedIndex) {
             1 { 'zh-CN' }
             2 { 'zh-TW' }
@@ -2071,6 +2137,26 @@ if ($env:LILITH_CONFIGURE_STARTUP_SMOKE -eq '1') {
     if (-not $apiPage.VerticalScroll.Visible) {
         throw 'AI API settings page should retain vertical scrolling.'
     }
+    if ($dnsFallback.Checked -ne [bool]$network.provider_dns_fallback_enabled -or
+        $dnsFallback.Text -ne (L 'settings.dns_fallback')) {
+        throw 'DNS recovery control did not retain configuration/localization.'
+    }
+    $originalPreset = $providerPreset.SelectedIndex
+    $originalModel = $model.Text
+    $providerPreset.SelectedIndex = 2
+    $model.Text = 'smoke-handwritten-model'
+    $providerPreset.SelectedIndex = 1
+    if ($model.Items -notcontains 'deepseek-v4-1-flash-260910' -or
+        $model.Items -notcontains 'deepseek-v4-flash-ga-260731' -or
+        $model.Items -notcontains 'deepseek-v4-pro-ga-260813') {
+        throw 'Ark model choices are incomplete.'
+    }
+    $providerPreset.SelectedIndex = 2
+    if ($model.Text -ne 'smoke-handwritten-model' -or $model.Items -notcontains 'deepseek-flash') {
+        throw 'Provider switching overwrote a manually entered model.'
+    }
+    $providerPreset.SelectedIndex = $originalPreset
+    $model.Text = $originalModel
     $form.Hide()
 } else {
     [void]$form.ShowDialog()

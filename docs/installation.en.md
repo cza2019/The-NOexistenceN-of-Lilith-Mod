@@ -2,7 +2,7 @@
 
 ## Install
 
-1. Download `The-NOexistenceN-of-Lilith-Mod-v0.3.3-win-x64.zip` from Releases and compare its SHA-256 with the published checksum.
+1. Download `The-NOexistenceN-of-Lilith-Mod-v0.3.4-win-x64.zip` from Releases and compare its SHA-256 with the published checksum.
 2. Quit *The NOexistenceN of Lilith* from the tray and wait until Steam no longer shows **Stop**.
 3. Extract every file into the game root. `winhttp.dll`, `Lilith.exe`, `BepInEx`, and `dotnet` should be in that game directory.
 4. Start from Steam. The first IL2CPP cache build can take longer; do not force-close it while loading.
@@ -24,6 +24,9 @@ The viewer uses the Microsoft Edge WebView2 Evergreen Runtime normally present o
 ## Update
 
 Fully quit the game, then overwrite the old files with the new ZIP. API settings, sessions, and player memories under `%APPDATA%\LilithAI` are not overwritten. Changing the Mod language does not translate history or long-term memories.
+
+
+Updates replace program files in the game directory. API keys, settings, chat history and long-term memory remain under `%APPDATA%\LilithAI`; native game saves are not included or overwritten. Keep this user data directory, and copy it separately if you want a backup. Automatic backup DNS is enabled by default. Saved and manually entered model names are preserved.
 
 ## Uninstall
 

@@ -2,7 +2,7 @@
 
 ## 安裝
 
-1. 從 Releases 下載 `The-NOexistenceN-of-Lilith-Mod-v0.3.3-win-x64.zip`，並核對同頁 SHA-256。
+1. 從 Releases 下載 `The-NOexistenceN-of-Lilith-Mod-v0.3.4-win-x64.zip`，並核對同頁 SHA-256。
 2. 從系統匣結束《不存在的莉莉絲》，確認 Steam 不再顯示「停止」。
 3. 將 ZIP 內所有內容解壓到遊戲根目錄。正確結構中，`winhttp.dll`、`Lilith.exe`、`BepInEx` 與 `dotnet` 位於遊戲目錄。
 4. 從 Steam 啟動。首次建立 IL2CPP 快取可能較慢，請勿在載入時強制關閉。
@@ -37,3 +37,5 @@
 - 回報日誌前請移除私人對話、玩家稱呼與本機路徑。
 - Gemini 無法連線時，請檢查地區、Key、Base URL 與代理；不支援含帳密或 SOCKS 的代理。
 - 獨立搜尋視窗只在模型實際呼叫 Google Search 後開啟；請檢查 WebView2、預設瀏覽器與安全軟體。
+
+更新只替換遊戲目錄中的程式檔案。API 金鑰與設定、聊天記錄及長期記憶保存在 `%APPDATA%\LilithAI`，原生遊戲存檔不會被套件覆蓋。請勿刪除此使用者資料目錄；需要備份時可複製整個目錄。自動備用 DNS 預設開啟，已儲存的模型名稱與手動輸入型號保持原樣。

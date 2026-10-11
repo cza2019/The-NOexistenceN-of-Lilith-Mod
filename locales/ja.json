@@ -85,6 +85,8 @@
     "settings.reply_limit": "1回の返事の Unicode 文字数上限",
     "settings.reply_limit_hint": "モデルは上限内で完結した返事を組み立てます。",
     "settings.parenthetical": "括弧内で表情／動作を表現する（DeepSeek はこの形式を使うことがあります）",
+    "settings.dns_fallback": "接続に失敗した場合、予備 DNS を自動的に試す",
+    "settings.dns_fallback_hint": "公式 API への直接接続で TLS 接続に失敗した場合、Ali DNS で一度再試行し、成功後は 10 分間優先します。プロキシ接続は設定を引き続き使用します。",
     "settings.proxy_url": "任意の HTTP/HTTPS プロキシ（認証なし）",
     "settings.proxy_hint": "優先順：この設定、HTTPS_PROXY/HTTP_PROXY 環境変数、直接接続。localhost と 127.0.0.1 は常にプロキシを迂回します。",
     "settings.gemini_notice": "Gemini は store=false を使用するため、Google に会話チェーンを保存しません。無料枠の入出力はサービス改善に利用される場合があります。Google Search grounding の関連データは規約に基づき 30 日間保持され、モデルが実行した検索ごとに課金される場合があります。接続テストでは検索しません。",

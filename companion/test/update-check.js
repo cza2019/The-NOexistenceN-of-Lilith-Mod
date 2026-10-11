@@ -102,6 +102,10 @@ async function main() {
   assert.strictEqual((await stubCheck('v0.3.3')).status, 'update_available');
   assert.strictEqual((await stubCheck('v0.3.3-beta')).status, 'update_available');
   assert.strictEqual((await checkForUpdate({
+    currentVersion: '0.3.3', repository,
+    request: async () => ({ tag_name: 'v0.3.4', html_url: releaseUrl('0.3.4') })
+  })).status, 'update_available');
+  assert.strictEqual((await checkForUpdate({
     currentVersion: '0.3.2',
     repository: '',
     request: async () => { throw new Error('must not run'); }

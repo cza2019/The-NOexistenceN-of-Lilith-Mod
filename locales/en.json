@@ -85,6 +85,8 @@
     "settings.reply_limit": "Maximum Unicode characters per reply",
     "settings.reply_limit_hint": "The model will compose a complete reply within this limit.",
     "settings.parenthetical": "Allow parenthetical expressions/actions (DeepSeek models often return them)",
+    "settings.dns_fallback": "Automatically try backup DNS when a connection fails",
+    "settings.dns_fallback_hint": "For TLS connection failures on direct official API connections, retry once using Ali DNS and prefer it for 10 minutes after success. Proxy connections use the proxy settings.",
     "settings.proxy_url": "Optional HTTP/HTTPS proxy (no authentication)",
     "settings.proxy_hint": "Priority: this value, HTTPS_PROXY/HTTP_PROXY, then direct connection. localhost and 127.0.0.1 always bypass the proxy.",
     "settings.gemini_notice": "Gemini uses store=false, so Google does not host the chat chain. Free-tier input/output may be used to improve services; Google Search grounding data is retained for 30 days under its terms and each model-executed query may be billed. Connection testing does not run Search.",

@@ -19,6 +19,9 @@ if ($pathKeys -contains 'Path' -and $pathKeys -contains 'PATH') {
 }
 $bundle = (Resolve-Path -LiteralPath $BundleDirectory).Path
 $localizedFiles = @(
+    'BepInEx\plugins\companion\src\provider-request.js',
+    'BepInEx\plugins\companion\src\provider-test.js',
+    'BepInEx\plugins\companion\src\network.js',
     'BepInEx\plugins\locales\zh-CN.json',
     'BepInEx\plugins\locales\zh-TW.json',
     'BepInEx\plugins\locales\en.json',

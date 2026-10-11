@@ -8,7 +8,7 @@
 
 Steamのデスクトップペット『The NOexistenceN of Lilith』に、生成AIとの会話、プレイヤーの長期記憶、原作知識のローカル検索、関連するPC状態、外部音楽との連動を追加します。プレイヤーは自分のモデルサービスを設定するか、AIを設定せず音楽同期だけを利用できます。
 
-> 現在のバージョン：0.3.3 · Windows 10/11 x64
+> 現在のバージョン：0.3.4 · Windows 10/11 x64
 
 ## 主な機能
 
@@ -23,7 +23,7 @@ Steamのデスクトップペット『The NOexistenceN of Lilith』に、生成A
 
 ## インストール
 
-1. GitHub Releasesから `The-NOexistenceN-of-Lilith-Mod-v0.3.3-win-x64.zip` をダウンロードします。
+1. GitHub Releasesから `The-NOexistenceN-of-Lilith-Mod-v0.3.4-win-x64.zip` をダウンロードします。
 2. 『The NOexistenceN of Lilith』を完全に終了します。
 3. ZIPの全内容をゲームのルートへ展開し、`winhttp.dll` と `Lilith.exe` を同じ階層に置きます。
 4. Steamから起動します。BepInExの初回起動は少し長くなることがあります。

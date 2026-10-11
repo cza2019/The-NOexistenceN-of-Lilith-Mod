@@ -10,7 +10,7 @@
 生成式 AI 聊天、角色长期记忆、原作剧情检索、本机状态感知和外部音乐联动。
 普通玩家只需配置自己的服务模型，或仅使用音乐同步功能。
 
-> 当前版本：0.3.3 · Windows 10/11 x64
+> 当前版本：0.3.4 · Windows 10/11 x64
 
 ## 主要功能
 
@@ -28,7 +28,7 @@
 
 ## 普通玩家安装
 
-1. 在 GitHub Releases 下载 `The-NOexistenceN-of-Lilith-Mod-v0.3.3-win-x64.zip`。
+1. 在 GitHub Releases 下载 `The-NOexistenceN-of-Lilith-Mod-v0.3.4-win-x64.zip`。
 2. 完全退出《不存在的莉莉丝》。
 3. 将 ZIP 内全部内容解压到游戏根目录，使 `winhttp.dll` 与 `Lilith.exe` 同级。
 4. 从 Steam正常启动游戏。首次加载 BepInEx可能比平时慢。
@@ -85,4 +85,4 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-bundle.ps1
 - BepInEx、Unity基础类库、Node.js、.NET等组件使用各自条款，详见 [第三方组件声明](THIRD-PARTY-NOTICES.md)。
 - 本项目不包含游戏本体，使用者必须通过 Steam合法安装《不存在的莉莉丝》。
 
-macOS适配、设置窗口脱离 PowerShell和自动覆盖更新不属于 0.3.3 范围。
+macOS适配、设置窗口脱离 PowerShell和自动覆盖更新不属于 0.3.4 范围。

@@ -21,7 +21,9 @@
     "max_tokens": 500
   },
   "network": {
-    "proxy_url": ""
+    "proxy_url": "",
+    "provider_dns_servers": [],
+    "provider_dns_fallback_enabled": true
   },
   "media": {
     "enabled": true,

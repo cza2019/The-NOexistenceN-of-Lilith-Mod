@@ -1,6 +1,7 @@
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using UI.TraySetting;
@@ -246,8 +247,22 @@ internal sealed class PlayerNameBridge : IDisposable
     {
         try
         {
-            TraySettingController? controller = UnityEngine.Object.FindObjectOfType<TraySettingController>();
-            controller?._view?.SetNameWithoutNotify(playerName);
+            // The legacy controller no longer exists in the new native settings
+            // UI. Keep this optional refresh compatible with older game builds;
+            // saving the name through TraySettingModel remains authoritative.
+            Type? controllerType = typeof(TraySettingModel).Assembly.GetType(
+                "UI.TraySetting.TraySettingController");
+            if (controllerType is null) return;
+            MethodInfo? find = Array.Find(typeof(UnityEngine.Object).GetMethods(), method =>
+                method.Name == "FindObjectOfType" && method.IsGenericMethodDefinition
+                && method.GetParameters().Length == 0);
+            object? controller = find?.MakeGenericMethod(controllerType).Invoke(null, null);
+            if (controller is null) return;
+            const BindingFlags flags = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
+            object? view = controllerType.GetProperty("_view", flags)?.GetValue(controller)
+                ?? controllerType.GetField("_view", flags)?.GetValue(controller);
+            view?.GetType().GetMethod("SetNameWithoutNotify", flags, null,
+                new[] { typeof(string) }, null)?.Invoke(view, new object[] { playerName });
         }
         catch (Exception error)
         {

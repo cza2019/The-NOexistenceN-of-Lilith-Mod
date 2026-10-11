@@ -12,7 +12,7 @@ public sealed class LilithModPlugin : BasePlugin
 {
     public const string PluginGuid = "com.codex.lilith.mod";
     public const string PluginName = "Lilith Mod";
-    public const string PluginVersion = "0.3.3";
+    public const string PluginVersion = "0.3.4";
 
     internal static BepInEx.Logging.ManualLogSource PluginLog { get; private set; } = null!;
     private static LilithModPlugin? _instance;
